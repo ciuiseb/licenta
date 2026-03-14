@@ -1,0 +1,20 @@
+{
+  "architecture": {
+    "layers": [1, 20, 20, 20, 1],
+    "activation": "tanh"
+  },
+  "training": {
+    "epochs": 5000,
+    "learning_rate": 0.001,
+    "optimizer": "Adam"
+  },
+  "loss_weights": {
+    "physics": 1.0,
+    "boundary": 100.0
+  },
+  "domain": {
+    "t_min": 0.0,
+    "t_max": 10.0,
+    "training_points": 500
+  }
+}
