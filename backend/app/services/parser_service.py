@@ -18,8 +18,17 @@ class MathParser:
 
     def parse(self, equation_str):
         try:
-            clean_str = equation_str.replace("y''", "diff(y,t,t)")
-            clean_str = clean_str.replace("y'", "diff(y,t)")
+            import re
+            
+            def replace_derivative(match):
+                prime_count = len(match.group(1))
+                if prime_count == 1:
+                    return "diff(y,t)"
+                else:
+                    t_params = ",".join(["t"] * (prime_count - 1))
+                    return f"diff(y,t,{t_params})"
+            
+            clean_str = re.sub(r"y('+)", replace_derivative, equation_str)
 
             local_dict = {'y': self.y, 't': self.t}
             if "=" in clean_str:

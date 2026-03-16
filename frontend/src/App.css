@@ -50,6 +50,71 @@ header p {
   margin-bottom: 3rem;
 }
 
+.formula-display {
+  text-align: center;
+  padding: 20px;
+  margin: 20px 0;
+  background-color: #1f2937;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+.formula-display h3 {
+  margin: 0 0 15px 0;
+  color: #e5e7eb;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.formula-content {
+  font-size: 1.2rem;
+  color: #f3f4f6;
+  font-family: 'KaTeX_Main', 'Times New Roman', serif;
+  padding: 10px;
+  background-color: #111827;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  display: inline-block;
+  min-width: 200px;
+}
+
+.formula-content .katex {
+  font-size: 1.1em !important;
+  color: #f3f4f6 !important;
+}
+
+.formula-content .katex .katex-mathml {
+  display: none !important;
+}
+
+.katex-error {
+  display: none !important;
+}
+
+.katex-error + * {
+  display: none !important;
+}
+
+span:contains("fallback"),
+label:contains("fallback"),
+div:contains("Use Fallback Mode") {
+  display: none !important;
+}
+
+/* Hide any input checkboxes near katex errors */
+.katex-error ~ input[type="checkbox"],
+.katex-error ~ label input[type="checkbox"] {
+  display: none !important;
+}
+
+/* Hide any div with simulation or fallback in class/id */
+div[class*="simulation"],
+div[id*="simulation"],
+div[class*="fallback"],
+div[id*="fallback"] {
+  display: none !important;
+}
+
 /* --- CARDURI --- */
 .card {
   background: var(--card-bg);

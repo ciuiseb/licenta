@@ -45,7 +45,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
     return (
         <div className="visualization-page">
             <div className="visualization-page-header">
-                <button onClick={() => navigate('/')} className="btn btn-secondary btn-back">
+                <button onClick={handleReset} className="btn btn-secondary btn-back">
                     ← Back to Configuration
                 </button>
                 <h2>Real-Time PINN Training</h2>
