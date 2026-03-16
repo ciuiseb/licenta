@@ -16,11 +16,12 @@ const useRealTimeTraining = (baseUrl = '') => {
     epochsPerSecond: 0
   });
   const [error, setError] = useState(null);
-  
+
   const sseConnectionRef = useRef(null);
   const statsIntervalRef = useRef(null);
   const lastEpochTimeRef = useRef(null);
 
+  // Removed setConnectionStatus('disconnected') from here so it doesn't overwrite errors
   const cleanup = useCallback(() => {
     if (sseConnectionRef.current) {
       sseConnectionRef.current.abort();
@@ -30,7 +31,6 @@ const useRealTimeTraining = (baseUrl = '') => {
       clearInterval(statsIntervalRef.current);
       statsIntervalRef.current = null;
     }
-    setConnectionStatus('disconnected');
   }, []);
 
   const updateStats = useCallback(() => {
@@ -81,10 +81,10 @@ const useRealTimeTraining = (baseUrl = '') => {
       console.log('Starting training with payload:', payload);
 
       sseConnectionRef.current = pinnAPI.streamTraining(
-        payload.formula,
-        payload.conditions,
-        payload.tMax,
-        payload.parameters
+          payload.formula,
+          payload.conditions,
+          payload.tMax,
+          payload.parameters
       );
 
       setConnectionStatus('connected');
@@ -93,7 +93,7 @@ const useRealTimeTraining = (baseUrl = '') => {
       try {
         for await (const data of sseConnectionRef.current.stream()) {
           console.log('SSE data received:', data);
-          
+
           switch (data.type) {
             case 'initial_solutions':
               console.log('Received initial solutions:', data);
@@ -104,7 +104,7 @@ const useRealTimeTraining = (baseUrl = '') => {
                 setSymbolicData(data.symbolic);
               }
               break;
-              
+
             case 'epoch_update':
               const epochTime = Date.now();
               if (lastEpochTimeRef.current) {
@@ -122,38 +122,35 @@ const useRealTimeTraining = (baseUrl = '') => {
                 current: data.epoch || 0,
                 total: 5000
               }));
-              
+
               if (data.function_data && data.function_data.function_data) {
                 setTrainingData({
                   function_data: data.function_data.function_data,
                   metadata: data.function_data.metadata
                 });
               }
-              
+
               if (data.loss) {
                 setLossData(data.loss);
               }
               break;
-              
+
             case 'training_complete':
               console.log('Training completed:', data);
               setProgress(prev => ({ ...prev, completed: true }));
               setIsTraining(false);
               setConnectionStatus('disconnected');
-              
+
               if (data.final_data) {
                 setTrainingData({
                   function_data: data.final_data.function_data,
                   metadata: data.final_data.metadata
                 });
               }
-              
-              if (statsIntervalRef.current) {
-                clearInterval(statsIntervalRef.current);
-                statsIntervalRef.current = null;
-              }
+
+              cleanup();
               return;
-              
+
             case 'training_error':
             case 'validation_error':
             case 'server_error':
@@ -163,7 +160,7 @@ const useRealTimeTraining = (baseUrl = '') => {
               setConnectionStatus('error');
               cleanup();
               return;
-              
+
             default:
               console.log('Unknown update type:', data.type);
           }
@@ -171,6 +168,7 @@ const useRealTimeTraining = (baseUrl = '') => {
       } catch (streamError) {
         if (streamError.name === 'AbortError') {
           console.log('Training aborted by user');
+          setConnectionStatus('disconnected'); // Explicitly handle disconnect here
           return;
         }
         throw streamError;
@@ -190,7 +188,7 @@ const useRealTimeTraining = (baseUrl = '') => {
     cleanup();
     setIsTraining(false);
     setProgress(prev => ({ ...prev, completed: false }));
-    setConnectionStatus('disconnected');
+    setConnectionStatus('disconnected'); // Explicitly handle disconnect here
   }, [cleanup]);
 
   const reset = useCallback(() => {
@@ -207,7 +205,7 @@ const useRealTimeTraining = (baseUrl = '') => {
       epochsPerSecond: 0
     });
     setError(null);
-    setConnectionStatus('disconnected');
+    setConnectionStatus('disconnected'); // Explicitly handle disconnect here
   }, [cleanup]);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 // src/components/EquationForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
@@ -16,6 +16,7 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
     const [conditions, setConditions] = useState([{ t: 0, val: '1' }]);
     const [tMax, setTMax] = useState(10);
     const [validationError, setValidationError] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
         isTraining,
@@ -82,16 +83,40 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                 neurons_per_layer: parameters.neuronsPerLayer
             }
         };
-        
-        setParameters(prev => ({ 
-            ...prev, 
+
+        setParameters(prev => ({
+            ...prev,
             formula,
             conditions: conditions.map(c => ({ t: c.t, val: parseFloat(c.val) || 0 })),
             tMax: parseFloat(tMax)
         }));
+
+        setIsSubmitting(true);
         startTraining(payload);
-        navigate('/visualization');
     };
+
+    // Safe Navigation Hook
+    useEffect(() => {
+        if (!isSubmitting) return;
+
+        // If a backend error pops up, cancel the navigation
+        if (trainingError) {
+            setIsSubmitting(false);
+            return;
+        }
+
+        // Give the backend a brief moment to return a Validation 400.
+        // If the connection holds and no error appears, transition safely.
+        let timer;
+        if (isTraining) {
+            timer = setTimeout(() => {
+                navigate('/visualization');
+                setIsSubmitting(false);
+            }, 400);
+        }
+
+        return () => clearTimeout(timer);
+    }, [isSubmitting, isTraining, trainingError, navigate]);
 
     const addCondition = () => {
         setValidationError(null);
@@ -188,10 +213,10 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                                 Use Fallback Mode (Simulation)
                             </label>
                         </div>
-                        
-                        <button 
-                            type="button" 
-                            onClick={handleStartTraining} 
+
+                        <button
+                            type="button"
+                            onClick={handleStartTraining}
                             disabled={isTraining || !formula}
                             className={`btn btn-primary btn-block ${isTraining ? 'btn-loading' : ''}`}
                         >

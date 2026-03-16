@@ -10,7 +10,10 @@ class CauchyValidator:
 
         parse_result = self.parser.parse(formula_str)
         if not parse_result['success']:
-            return {"valid": False, "error": parse_result.get('error')}
+            return {
+                "valid": False,
+                    "error": parse_result.get('error')
+            }
 
         required_order = parse_result['meta']['order']
         if len(conditions) != required_order:

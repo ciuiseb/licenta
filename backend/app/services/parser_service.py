@@ -1,3 +1,4 @@
+import re
 import sympy
 from sympy.parsing.sympy_parser import (
     parse_expr,
@@ -18,8 +19,24 @@ class MathParser:
 
     def parse(self, equation_str):
         try:
-            import re
-            
+            def check_notation_consistency(equation):
+                if re.search(r"y\([^)]*\)'+", equation):
+                    return False, "Invalid notation. Use y'(t) instead of y(t)'."
+
+                has_deriv_with_t = bool(re.search(r"y'+\s*\(", equation))
+                has_deriv_without_t = bool(re.search(r"y'+(?!\s*\()", equation))
+                has_plain_with_t = bool(re.search(r"\by\b\s*\(", equation))
+                has_plain_without_t = bool(re.search(r"\by\b(?!\s*['(])", equation))
+
+                if (has_deriv_with_t and has_plain_without_t) or (has_deriv_without_t and has_plain_with_t):
+                    return False, "Mixed notation detected. Use either y'(t) + y(t) or y' + y consistently."
+
+                return True, ""
+
+            is_consistent, error_msg = check_notation_consistency(equation_str)
+            if not is_consistent:
+                return {"success": False, "error": error_msg}
+
             def replace_derivative(match):
                 prime_count = len(match.group(1))
                 if prime_count == 1:
@@ -27,8 +44,10 @@ class MathParser:
                 else:
                     t_params = ",".join(["t"] * (prime_count - 1))
                     return f"diff(y,t,{t_params})"
-            
-            clean_str = re.sub(r"y('+)", replace_derivative, equation_str)
+
+            clean_str = re.sub(r"y('+)\([^)]*\)", replace_derivative, equation_str)
+            clean_str = re.sub(r"y('+(?!\())", replace_derivative, clean_str)
+
 
             local_dict = {'y': self.y, 't': self.t}
             if "=" in clean_str:
@@ -45,13 +64,13 @@ class MathParser:
 
             val_t = Symbol('val_t')
             val_y = Symbol('val_y')
-            
+
             derivative_symbols = [val_y]
             substitutions = {
                 self.y: val_y,
                 self.t: val_t
             }
-            
+
             for i in range(1, order + 1):
                 if i == 1:
                     deriv_symbol = Symbol('val_dy')
@@ -63,10 +82,10 @@ class MathParser:
                     deriv_symbol = Symbol('val_d4y')
                 else:
                     deriv_symbol = Symbol(f'val_d{i}y')
-                
+
                 derivative_symbols.append(deriv_symbol)
                 substitutions[self.y.diff(self.t, i)] = deriv_symbol
-            
+
             func_expr = equation_expr.subs(substitutions)
 
             torch_func = sympy.lambdify(
@@ -80,7 +99,6 @@ class MathParser:
                 "latex": sympy.latex(Eq(equation_expr, 0)),
                 "sympy_object": equation_expr,
                 "torch_func": torch_func,
-
                 "meta": {
                     "linearity": "Linear" if is_linear else "Non-linear",
                     "order": order,
