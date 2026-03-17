@@ -6,12 +6,11 @@ from sympy.parsing.sympy_parser import (
     implicit_multiplication_application,
     convert_xor
 )
-from sympy import Symbol, Function, Derivative, Eq, classify_ode, ode_order
+from sympy import Symbol, Function, Eq, classify_ode, ode_order
 
 class MathParser:
     def __init__(self):
         self.t = Symbol('t')
-        self.y = Function('y')(self.t)
         self.transformations = (
                 standard_transformations +
                 (implicit_multiplication_application, convert_xor)
@@ -19,17 +18,29 @@ class MathParser:
 
     def parse(self, equation_str):
         try:
-            def check_notation_consistency(equation):
-                if re.search(r"y\([^)]*\)'+", equation):
-                    return False, "Invalid notation. Use y'(t) instead of y(t)'."
+            var_match = re.search(r"\b([a-zA-Z])'+", equation_str)
+            var_name = var_match.group(1) if var_match else 'y'
 
-                has_deriv_with_t = bool(re.search(r"y'+\s*\(", equation))
-                has_deriv_without_t = bool(re.search(r"y'+(?!\s*\()", equation))
-                has_plain_with_t = bool(re.search(r"\by\b\s*\(", equation))
-                has_plain_without_t = bool(re.search(r"\by\b(?!\s*['(])", equation))
+            dyn_func = Function(var_name)(self.t)
+
+            def check_notation_consistency(equation):
+                single_letters = set(re.findall(r'\b[a-zA-Z]\b', equation))
+                allowed_letters = {var_name, 't', 'e'}
+                invalid_letters = single_letters - allowed_letters
+
+                if invalid_letters:
+                    return False, f"Inconsistent variables detected: {', '.join(invalid_letters)}. Use only '{var_name}' and 't'."
+
+                if re.search(fr"\b{var_name}\([^)]*\)'+", equation):
+                    return False, f"Invalid notation. Use {var_name}'(t) instead of {var_name}(t)'."
+
+                has_deriv_with_t = bool(re.search(fr"\b{var_name}'+\s*\(", equation))
+                has_deriv_without_t = bool(re.search(fr"\b{var_name}'+(?!\s*\()", equation))
+                has_plain_with_t = bool(re.search(fr"\b{var_name}\b\s*\(", equation))
+                has_plain_without_t = bool(re.search(fr"\b{var_name}\b(?!\s*['(])", equation))
 
                 if (has_deriv_with_t and has_plain_without_t) or (has_deriv_without_t and has_plain_with_t):
-                    return False, "Mixed notation detected. Use either y'(t) + y(t) or y' + y consistently."
+                    return False, f"Mixed notation detected. Use either {var_name}'(t) + {var_name}(t) or {var_name}' + {var_name} consistently."
 
                 return True, ""
 
@@ -40,16 +51,16 @@ class MathParser:
             def replace_derivative(match):
                 prime_count = len(match.group(1))
                 if prime_count == 1:
-                    return "diff(y,t)"
+                    return f"diff({var_name},t)"
                 else:
                     t_params = ",".join(["t"] * (prime_count - 1))
-                    return f"diff(y,t,{t_params})"
+                    return f"diff({var_name},t,{t_params})"
 
-            clean_str = re.sub(r"y('+)\([^)]*\)", replace_derivative, equation_str)
-            clean_str = re.sub(r"y('+(?!\())", replace_derivative, clean_str)
+            clean_str = re.sub(fr"\b{var_name}('+)\([^)]*\)", replace_derivative, equation_str)
+            clean_str = re.sub(fr"\b{var_name}('+(?!\())", replace_derivative, clean_str)
 
+            local_dict = {var_name: dyn_func, 't': self.t}
 
-            local_dict = {'y': self.y, 't': self.t}
             if "=" in clean_str:
                 lhs_str, rhs_str = clean_str.split("=")
                 lhs = parse_expr(lhs_str, local_dict=local_dict, transformations=self.transformations)
@@ -58,8 +69,8 @@ class MathParser:
             else:
                 equation_expr = parse_expr(clean_str, local_dict=local_dict, transformations=self.transformations)
 
-            order = ode_order(equation_expr, self.y)
-            hints = classify_ode(Eq(equation_expr, 0), self.y)
+            order = ode_order(equation_expr, dyn_func)
+            hints = classify_ode(Eq(equation_expr, 0), dyn_func)
             is_linear = any("linear" in hint for hint in hints)
 
             val_t = Symbol('val_t')
@@ -67,7 +78,7 @@ class MathParser:
 
             derivative_symbols = [val_y]
             substitutions = {
-                self.y: val_y,
+                dyn_func: val_y,
                 self.t: val_t
             }
 
@@ -84,7 +95,7 @@ class MathParser:
                     deriv_symbol = Symbol(f'val_d{i}y')
 
                 derivative_symbols.append(deriv_symbol)
-                substitutions[self.y.diff(self.t, i)] = deriv_symbol
+                substitutions[dyn_func.diff(self.t, i)] = deriv_symbol
 
             func_expr = equation_expr.subs(substitutions)
 
@@ -102,7 +113,8 @@ class MathParser:
                 "meta": {
                     "linearity": "Linear" if is_linear else "Non-linear",
                     "order": order,
-                    "methods": hints
+                    "methods": hints,
+                    "variable": var_name
                 }
             }
 

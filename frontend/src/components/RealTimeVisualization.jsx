@@ -403,37 +403,7 @@ const RealTimeVisualization = ({
                         }
                     })()}
 
-                    {lossData && (
-                        <div className="loss-metrics">
-                            <div className="metric-card">
-                                <div className="metric-label">Total Loss</div>
-                                <div className="metric-value">{lossData.total?.toFixed(6) || 'N/A'}</div>
-                                <div className="metric-trend">
-                                    {lossData.total < 0.001 && <span className="trend-good">↓ Good</span>}
-                                    {lossData.total >= 0.001 && lossData.total < 0.01 &&
-                                        <span className="trend-ok">→ OK</span>}
-                                    {lossData.total >= 0.01 && <span className="trend-bad">↑ High</span>}
-                                </div>
-                            </div>
-                            <div className="metric-card">
-                                <div className="metric-label">Physics Loss</div>
-                                <div className="metric-value">{lossData.physics?.toFixed(6) || 'N/A'}</div>
-                                <div className="metric-trend">
-                                    {lossData.physics < 0.001 && <span className="trend-good">↓ Good</span>}
-                                    {lossData.physics >= 0.001 && <span className="trend-ok">→ OK</span>}
-                                </div>
-                            </div>
-                            <div className="metric-card">
-                                <div className="metric-label">Boundary Loss</div>
-                                <div className="metric-value">{lossData.boundary?.toFixed(6) || 'N/A'}</div>
-                                <div className="metric-trend">
-                                    {lossData.boundary < 0.0001 && <span className="trend-good">↓ Good</span>}
-                                    {lossData.boundary >= 0.0001 && <span className="trend-ok">→ OK</span>}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
+                    
                     <div className="training-controls">
                         <button
                             onClick={onToggleTraining}

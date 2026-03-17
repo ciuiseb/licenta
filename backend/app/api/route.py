@@ -39,12 +39,19 @@ def solve_cauchy():
     order = check['order']
     initial_vals = [c['val'] for c in conditions]
 
-    sym_res = symbolic.solve_exact(parsed_data['sympy_object'], initial_vals)
+    sym_res = symbolic.solve_exact(
+        parsed_data['sympy_object'],
+        initial_vals,
+        t_range=(0, t_max),
+        points=100,
+        var_name=parsed_data['meta'].get('variable', 'y')
+    )
 
     num_res = numerical.solve_numerical(
         parsed_data['sympy_object'],
         initial_vals,
-        t_range=(0, t_max)
+        t_range=(0, t_max),
+        var_name=parsed_data['meta'].get('variable', 'y')
     )
 
     pinn_res = None
@@ -161,18 +168,20 @@ def stream_pinn_training():
             global current_pinn_solver
             try:
                 logger.info("Computing numerical and symbolic solutions...")
-                
+
                 sym_res = symbolic.solve_exact(
-                    parsed_data['sympy_object'], 
+                    parsed_data['sympy_object'],
                     initial_vals,
                     t_range=(0, t_max),
-                    points=100
+                    points=100,
+                    var_name=parsed_data['meta'].get('variable', 'y')
                 )
-                
+
                 num_res = numerical.solve_numerical(
                     parsed_data['sympy_object'],
                     initial_vals,
-                    t_range=(0, t_max)
+                    t_range=(0, t_max),
+                    var_name=parsed_data['meta'].get('variable', 'y')
                 )
                 
                 initial_data = {

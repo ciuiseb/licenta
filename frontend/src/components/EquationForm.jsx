@@ -1,13 +1,17 @@
-// src/components/EquationForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
 
-const getEquationOrder = (formula) => {
-    const matches = formula.match(/y'+/g);
-    if (!matches) return 0;
-    return Math.max(...matches.map(m => m.length - 1));
+const getEquationInfo = (formula) => {
+    const match = formula.match(/\b([a-zA-Z])'+/);
+    const varName = match ? match[1] : 'y';
+
+    const primeRegex = new RegExp(`\\b${varName}'+`, 'g');
+    const primeMatches = formula.match(primeRegex);
+    const order = primeMatches ? Math.max(...primeMatches.map(m => m.length - varName.length)) : 0;
+
+    return { varName, order };
 };
 
 const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback, onParameterChange }) => {
@@ -35,13 +39,26 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
             return 'Please enter a differential equation.';
         }
 
-        const order = getEquationOrder(formula);
+        const { varName, order } = getEquationInfo(formula);
+
+        const standaloneLetters = formula.match(/\b[a-zA-Z]\b/g) || [];
+        const invalidVars = standaloneLetters.filter(letter =>
+            letter !== varName &&
+            letter !== 't' &&
+            letter !== 'e'
+        );
+
+        if (invalidVars.length > 0) {
+            const uniqueInvalid = [...new Set(invalidVars)];
+            return `Inconsistent variables detected: ${uniqueInvalid.join(', ')}. Please use only '${varName}' as the dependent variable and 't' as time.`;
+        }
+
         if (order === 0) {
-            return 'Could not detect the order of the equation. Make sure it contains y\' or y\'\'.';
+            return 'Could not detect the order of the equation. Make sure it contains derivatives like f\' or x\'\'.';
         }
 
         if (conditions.length < order) {
-            return `This is a ${order}-order equation — it requires ${order} initial condition${order > 1 ? 's' : ''} (${Array.from({length: order}, (_, i) => i === 0 ? 'y(0)' : i === 1 ? "y'(0)" : `y${'\'' .repeat(i)}(0)`).join(', ')}), but only ${conditions.length} provided.`;
+            return `This is a ${order}-order equation — it requires ${order} initial condition${order > 1 ? 's' : ''} (${Array.from({length: order}, (_, i) => i === 0 ? `${varName}(0)` : i === 1 ? `${varName}'(0)` : `${varName}${'\'' .repeat(i)}(0)`).join(', ')}), but only ${conditions.length} provided.`;
         }
 
         if (conditions.length > order) {
@@ -52,7 +69,7 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
         for (let i = 0; i < conditions.length; i++) {
             const val = conditions[i].val.trim();
             if (val === '' || !numberRegex.test(val)) {
-                const label = i === 0 ? 'y(0)' : i === 1 ? "y'(0)" : `y${'\'' .repeat(i)}(0)`;
+                const label = i === 0 ? `${varName}(0)` : i === 1 ? `${varName}'(0)` : `${varName}${'\'' .repeat(i)}(0)`;
                 return `Initial condition ${label} must be a valid number${val ? ` (got '${val}')` : ''}.`;
             }
         }
@@ -95,18 +112,14 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
         startTraining(payload);
     };
 
-    // Safe Navigation Hook
     useEffect(() => {
         if (!isSubmitting) return;
 
-        // If a backend error pops up, cancel the navigation
         if (trainingError) {
             setIsSubmitting(false);
             return;
         }
 
-        // Give the backend a brief moment to return a Validation 400.
-        // If the connection holds and no error appears, transition safely.
         let timer;
         if (isTraining) {
             timer = setTimeout(() => {
@@ -129,11 +142,13 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
         }
     };
 
-    const getLabel = (index) => {
-        if (index === 0) return "y(0)";
-        if (index === 1) return "y'(0)";
-        return `y^(${index})(0)`;
+    const getLabel = (index, varName) => {
+        if (index === 0) return `${varName}(0)`;
+        if (index === 1) return `${varName}'(0)`;
+        return `${varName}^(${index})(0)`;
     };
+
+    const { varName } = getEquationInfo(formula);
 
     return (
         <div className="solver-container">
@@ -143,7 +158,6 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                 </div>
 
                 <form className="solver-form">
-                    {/* Input Ecuație */}
                     <div className="form-group">
                         <label>Ecuația Diferențială</label>
                         <input
@@ -155,13 +169,12 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                         />
                     </div>
 
-                    {/* Condiții Inițiale */}
                     <div className="form-group">
                         <label>Condiții Inițiale (Cauchy)</label>
                         <div className="conditions-grid">
                             {conditions.map((cond, index) => (
                                 <div key={index} className="condition-row">
-                                    <span className="latex-label">{getLabel(index)} = </span>
+                                    <span className="latex-label">{getLabel(index, varName)} = </span>
                                     <input
                                         type="text"
                                         inputMode="decimal"
@@ -186,7 +199,6 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                         </div>
                     </div>
 
-                    {/* Interval Timp */}
                     <div className="form-group">
                         <label>Interval de timp (tMax)</label>
                         <div className="time-input-wrapper">
@@ -228,14 +240,12 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                 </form>
             </div>
 
-            {/* Validation Error */}
             {validationError && (
                 <div className="alert alert-error">
                     <div>{validationError}</div>
                 </div>
             )}
 
-            {/* Training Error */}
             {trainingError && (
                 <div className="alert alert-error">
                     <div>{trainingError}</div>
