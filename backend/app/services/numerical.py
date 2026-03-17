@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
 import sympy
 
 class NumericalSolver:
@@ -30,27 +30,32 @@ class NumericalSolver:
                 raise ValueError("Nu am putut izola cea mai mare derivată.")
 
             f_expr = solved[0]
-
             u_syms = sympy.symbols(f'u0:{highest_order}')
-
             subs_dict = {func_sym: u_syms[0]}
             for i in range(1, highest_order):
                 subs_dict[func_sym.diff(t_sym, i)] = u_syms[i]
 
             f_system_expr = f_expr.subs(subs_dict)
-
             system_exprs = list(u_syms[1:]) + [f_system_expr]
-
             f_lambda = sympy.lambdify((u_syms, t_sym), system_exprs, modules='numpy')
 
-            def ode_system(U, t):
+            def ode_system(t, U):
                 return f_lambda(U, t)
 
             t_eval = np.linspace(t_range[0], t_range[1], points)
 
-            solution = odeint(ode_system, initial_conditions, t_eval)
+            solution = solve_ivp(
+                ode_system,
+                t_range,
+                initial_conditions,
+                method='RK45',
+                t_eval=t_eval
+            )
 
-            y_vals = solution[:, 0]
+            if not solution.success:
+                raise ValueError(f"Integrarea a eșuat: {solution.message}")
+
+            y_vals = solution.y[0]
 
             return {
                 "success": True,
