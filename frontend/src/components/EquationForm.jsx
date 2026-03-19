@@ -14,7 +14,7 @@ const getEquationInfo = (formula) => {
     return { varName, order };
 };
 
-const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback, onParameterChange }) => {
+const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
     const navigate = useNavigate();
     const [formula, setFormula] = useState("y' + y = 0");
     const [conditions, setConditions] = useState([{ t: 0, val: '1' }]);
@@ -116,7 +116,7 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
         if (!isSubmitting) return;
 
         if (trainingError) {
-            setIsSubmitting(false);
+            setTimeout(() => setIsSubmitting(false), 0);
             return;
         }
 

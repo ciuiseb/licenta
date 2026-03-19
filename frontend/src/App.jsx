@@ -15,7 +15,9 @@ function App() {
         formula: "y'' + y = 0"
     });
 
-    const trainingHook = useFallback ? useFallbackTraining() : useRealTimeTraining();
+    const fallbackTrainingHook = useFallbackTraining();
+    const realTimeTrainingHook = useRealTimeTraining();
+    const trainingHook = useFallback ? fallbackTrainingHook : realTimeTrainingHook;
 
     const handleParameterChange = (param, value) => {
         setParameters(prev => ({ ...prev, [param]: value }));
