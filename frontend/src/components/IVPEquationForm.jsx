@@ -14,7 +14,7 @@ const getEquationInfo = (formula) => {
     return { varName, order };
 };
 
-const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
+const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
     const navigate = useNavigate();
     const [formula, setFormula] = useState("y' + y = 0");
     const [conditions, setConditions] = useState([{ val: '1' }]);
@@ -288,4 +288,4 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
     );
 };
 
-export default CauchyEquationForm;
+export default IVPEquationForm;

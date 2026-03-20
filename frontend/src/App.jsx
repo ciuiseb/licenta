@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import CauchyEquationForm from './components/CauchyEquationForm.jsx';
+import IVPEquationForm from './components/IVPEquationForm.jsx';
 import VisualizationPage from './pages/VisualizationPage';
 import useRealTimeTraining from './hooks/useRealTimeTraining';
 import useFallbackTraining from './hooks/useFallbackTraining';
@@ -28,7 +28,7 @@ function App() {
             <main>
                 <Routes>
                     <Route path="/" element={
-                        <CauchyEquationForm
+                        <IVPEquationForm
                             trainingHook={trainingHook}
                             parameters={parameters}
                             setParameters={setParameters}
