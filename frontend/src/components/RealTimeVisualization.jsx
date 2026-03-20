@@ -57,75 +57,62 @@ const RealTimeVisualization = ({
         datasets: []
     });
 
+    const isValidData = (data) => data?.success && data?.data;
+    
+    const createDataset = (label, x, y, color, borderWidth = 2, borderDash = null) => ({
+        label,
+        data: y.map((val, idx) => ({x: x[idx], y: val})),
+        borderColor: color,
+        backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+        borderWidth,
+        pointRadius: 0,
+        tension: 0.1,
+        fill: false,
+        ...(borderDash && { borderDash })
+    });
+    
+    const calculateYBounds = (values) => {
+        if (values.length === 0) return {min: -1, max: 1};
+        const [minY, maxY] = [Math.min(...values), Math.max(...values)];
+        const padding = (maxY - minY) * 0.1 || 1;
+        return {min: minY - padding, max: maxY + padding};
+    };
+
     useEffect(() => {
         const datasets = [];
         let allYValues = [];
 
-        if (numericalData && numericalData.success && numericalData.data) {
+        if (isValidData(numericalData)) {
             const {x, y} = numericalData.data;
             allYValues = allYValues.concat(y);
-            datasets.push({
-                label: 'Numerical Solution',
-                data: y.map((val, idx) => ({x: x[idx], y: val})),
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderWidth: 2,
-                pointRadius: 0,
-                tension: 0.1,
-                fill: false,
-                borderDash: [5, 5]
-            });
+            datasets.push(createDataset('Numerical Solution', x, y, 'rgb(59, 130, 246)', 2, [5, 5]));
         }
 
-        if (symbolicData && symbolicData.success && symbolicData.data) {
+        if (isValidData(symbolicData)) {
             const {x, y} = symbolicData.data;
             allYValues = allYValues.concat(y);
-            datasets.push({
-                label: 'Symbolic Solution',
-                data: y.map((val, idx) => ({x: x[idx], y: val})),
-                borderColor: 'rgb(34, 197, 94)',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                borderWidth: 2,
-                pointRadius: 0,
-                tension: 0.1,
-                fill: false
-            });
+            datasets.push(createDataset('Symbolic Solution', x, y, 'rgb(34, 197, 94)', 2));
         }
 
-        if (trainingData && trainingData.function_data) {
+        if (trainingData?.function_data) {
             const {x, y} = trainingData.function_data;
             allYValues = allYValues.concat(y);
 
             if (progress.current !== currentEpoch) {
                 setCurrentEpoch(progress.current);
-
                 setHistoricalData(prev => {
                     const newHistory = [...prev, {epoch: progress.current, x, y}];
                     return newHistory.slice(-5);
                 });
             }
 
-            datasets.push({
-                label: `PINN Solution${progress.current > 0 ? ` (Epoch ${progress.current})` : ''}`,
-                data: y.map((val, idx) => ({x: x[idx], y: val})),
-                borderColor: 'rgb(251, 146, 60)',
-                backgroundColor: 'rgba(251, 146, 60, 0.1)',
-                borderWidth: 3,
-                pointRadius: 0,
-                tension: 0.1,
-                fill: false
-            });
+            datasets.push(createDataset(
+                `PINN Solution${progress.current > 0 ? ` (Epoch ${progress.current})` : ''}`,
+                x, y, 'rgb(251, 146, 60)', 3
+            ));
         }
 
-        if (allYValues.length > 0) {
-            const minY = Math.min(...allYValues);
-            const maxY = Math.max(...allYValues);
-            const padding = (maxY - minY) * 0.1 || 1;
-            setYBounds({
-                min: minY - padding,
-                max: maxY + padding
-            });
-        }
+        setYBounds(calculateYBounds(allYValues));
 
         if (updateTimeoutRef.current) {
             clearTimeout(updateTimeoutRef.current);
@@ -282,31 +269,14 @@ const RealTimeVisualization = ({
         };
     }, [isTraining, progress.current, progress.total, parameters, yBounds]);
 
-    const getConnectionStatusColor = () => {
-        switch (connectionStatus) {
-            case 'connected':
-                return '#10b981';
-            case 'connecting':
-                return '#f59e0b';
-            case 'error':
-                return '#ef4444';
-            default:
-                return '#6b7280';
-        }
+    const connectionStatusMap = {
+        connected: { color: '#10b981', text: 'Connected' },
+        connecting: { color: '#f59e0b', text: 'Connecting...' },
+        error: { color: '#ef4444', text: 'Connection Error' },
+        default: { color: '#6b7280', text: 'Disconnected' }
     };
 
-    const getConnectionStatusText = () => {
-        switch (connectionStatus) {
-            case 'connected':
-                return 'Connected';
-            case 'connecting':
-                return 'Connecting...';
-            case 'error':
-                return 'Connection Error';
-            default:
-                return 'Disconnected';
-        }
-    };
+    const getConnectionStatus = () => connectionStatusMap[connectionStatus] || connectionStatusMap.default;
 
     const exportData = () => {
         if (!trainingData) return;
@@ -345,9 +315,9 @@ const RealTimeVisualization = ({
                 <div className="card-header">
                     <h2>Real-Time PINN Training</h2>
                     <div className="training-status">
-                        <div className="connection-status" style={{color: getConnectionStatusColor()}}>
-                            <span className="status-dot" style={{backgroundColor: getConnectionStatusColor()}}></span>
-                            {getConnectionStatusText()}
+                        <div className="connection-status" style={{color: getConnectionStatus().color}}>
+                            <span className="status-dot" style={{backgroundColor: getConnectionStatus().color}}></span>
+                            {getConnectionStatus().text}
                         </div>
                         {isTraining && (
                             <span className="status-indicator status-training">
