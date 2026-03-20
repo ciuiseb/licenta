@@ -365,31 +365,31 @@ const RealTimeVisualization = ({
                     </div>
 
                     {symbolicData && symbolicData.success && (() => {
-                        try {
-                            return (
-                                <div className="formula-display">
-                                    <h3>Symbolic solution</h3>
-                                    <div className="formula-content">
-                                        {symbolicData.latex ? (
-                                            <InlineMath math={symbolicData.latex} errorColor="#ef4444" />
-                                        ) : (
-                                            <span>{symbolicData.formula_str}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        } catch (error) {
-                            console.error('Formula display error:', error);
-                            return (
-                                <div className="formula-display">
-                                    <h3>Symbolic Solution</h3>
-                                    <div className="formula-content">
-                                        <span>{symbolicData.formula_str}</span>
-                                    </div>
-                                </div>
-                            );
-                        }
-                    })()}
+        try {
+            return (
+                <div className="formula-display">
+                    <h3>Symbolic solution</h3>
+                    <div className="formula-content">
+                        {symbolicData.latex ? (
+                            <InlineMath math={symbolicData.latex} errorColor="#ef4444" />
+                        ) : (
+                            <span>{symbolicData.formula_str}</span>
+                        )}
+                    </div>
+                </div>
+            );
+        } catch (error) {
+            console.error('Formula display error:', error);
+            return (
+                <div className="formula-display">
+                    <h3>Symbolic Solution</h3>
+                    <div className="formula-content">
+                        <span>{symbolicData.formula_str}</span>
+                    </div>
+                </div>
+            );
+        }
+    })()}
 
                     
                     <div className="training-controls">

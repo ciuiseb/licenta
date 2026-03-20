@@ -50,6 +50,26 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                 <h2>Real-Time PINN Training</h2>
                 <div className="visualization-page-formula">
                     {parameters.formula || "—"}
+                    {parameters.conditions && parameters.conditions.length > 0 && (
+                        <div className="visualization-page-conditions">
+                            {parameters.conditions.map((cond, index) => {
+                                const getLabel = (index, varName = 'y') => {
+                                    if (index === 0) return `${varName}`;
+                                    if (index === 1) return `${varName}'`;
+                                    if (index === 2) return `${varName}''`;
+                                    if (index === 3) return `${varName}'''`;
+                                    return `${varName}<sup>(${index})</sup>`;
+                                };
+                                const varName = parameters.formula?.match(/\b([a-zA-Z])'+/)?.[1] || 'y';
+                                return (
+                                    <span key={index} className="condition-item">
+                                        <span dangerouslySetInnerHTML={{ __html: getLabel(index, varName) + '(' }}></span>
+                                        {cond.t}) = {cond.val}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 

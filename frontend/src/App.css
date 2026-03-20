@@ -757,6 +757,25 @@ input:focus {
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+.visualization-page-conditions {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.visualization-page-conditions .condition-item {
+  color: #e5e7eb;
+  background: rgba(147, 51, 234, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(147, 51, 234, 0.2);
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+}
+
 .btn-back {
   white-space: nowrap;
   flex-shrink: 0;
