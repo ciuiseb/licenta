@@ -219,18 +219,24 @@ input:focus {
 .condition-row, .time-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
 }
 
 .latex-label {
   font-family: 'Times New Roman', serif;
   font-style: italic;
   font-size: 1.1rem;
-  min-width: 60px;
+  color: var(--text-main);
+  display: inline-block;
 }
 
 .number-input {
   width: 100px;
+}
+
+.time-input {
+  width: 60px !important;
+  flex-shrink: 0;
 }
 
 /* --- BUTTONS --- */
