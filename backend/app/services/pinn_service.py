@@ -136,7 +136,6 @@ class PinnService:
     def bvp_loss(self, conditions):
         """Placeholder for Boundary Value Problems"""
         loss_bvp = 0.0
-        # Will be implemented when you build the BVP frontend
         return loss_bvp
 
     def train_model(self, physics_function, conditions, problem_type="ivp", t_max_override=None):
@@ -208,7 +207,6 @@ class PinnService:
         lambda_phys = self.config["loss_weights"]["physics"]
         lambda_bound = self.config["loss_weights"]["boundary"]
 
-        # For IVP: use initial condition time as t_min, for BVP: extract min/max from conditions
         if problem_type == "ivp" and conditions:
             t_min = float(conditions[0]['t'])
         elif problem_type == "bvp" and len(conditions) >= 2:
