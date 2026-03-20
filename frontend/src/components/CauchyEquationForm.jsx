@@ -17,7 +17,8 @@ const getEquationInfo = (formula) => {
 const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
     const navigate = useNavigate();
     const [formula, setFormula] = useState("y' + y = 0");
-    const [conditions, setConditions] = useState([{ t: 0, val: '1' }]);
+    const [conditions, setConditions] = useState([{ val: '1' }]);
+    const [initialTime, setInitialTime] = useState(0);
     const [tMax, setTMax] = useState(10);
     const [validationError, setValidationError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +33,11 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
         const newConditions = [...conditions];
         newConditions[index][field] = value;
         setConditions(newConditions);
+    };
+
+    const handleInitialTimeChange = (value) => {
+        setInitialTime(value);
+        setValidationError(null);
     };
 
     const validateForm = () => {
@@ -68,15 +74,15 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
         const numberRegex = /^-?\d*\.?\d+$/;
         for (let i = 0; i < conditions.length; i++) {
             const val = String(conditions[i].val).trim();
-            const t = String(conditions[i].t).trim();
             if (val === '' || !numberRegex.test(val)) {
                 const label = i === 0 ? `${varName}` : i === 1 ? `${varName}'` : `${varName}^(${i})`;
                 return `Initial condition ${label} must be a valid number${val ? ` (got '${val}')` : ''}.`;
             }
-            if (t === '' || !numberRegex.test(t)) {
-                const label = i === 0 ? `${varName}` : i === 1 ? `${varName}'` : `${varName}^(${i})`;
-                return `Time for ${label} must be a valid number${t ? ` (got '${t}')` : ''}.`;
-            }
+        }
+
+        const parsedInitialTime = parseFloat(initialTime);
+        if (isNaN(parsedInitialTime)) {
+            return 'Initial time must be a valid number.';
         }
 
         const parsedTMax = parseFloat(tMax);
@@ -97,7 +103,7 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
 
         const payload = {
             formula: formula,
-            conditions: conditions.map(c => ({ t: c.t, val: parseFloat(c.val) || 0 })),
+            conditions: conditions.map(c => ({ t: parseFloat(initialTime), val: parseFloat(c.val) || 0 })),
             tMax: parseFloat(tMax),
             parameters: {
                 learning_rate: parameters.learningRate,
@@ -109,7 +115,7 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
         setParameters(prev => ({
             ...prev,
             formula,
-            conditions: conditions.map(c => ({ t: c.t, val: parseFloat(c.val) || 0 })),
+            conditions: conditions.map(c => ({ t: parseFloat(initialTime), val: parseFloat(c.val) || 0 })),
             tMax: parseFloat(tMax)
         }));
 
@@ -138,7 +144,7 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
 
     const addCondition = () => {
         setValidationError(null);
-        setConditions([...conditions, { t: 0, val: '' }]);
+        setConditions([...conditions, { val: '' }]);
     };
 
     const removeCondition = () => {
@@ -178,20 +184,25 @@ const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallba
 
                     <div className="form-group">
                         <label>Condiții Inițiale</label>
+                        
+                        <div className="form-group" style={{ marginBottom: '15px' }}>
+                            <label style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>Initial point t = </label>
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                className="number-input"
+                                value={initialTime}
+                                onChange={(e) => handleInitialTimeChange(e.target.value)}
+                                placeholder="0"
+                                style={{ width: '80px', marginLeft: '10px' }}
+                            />
+                        </div>
+                        
                         <div className="conditions-grid">
                             {conditions.map((cond, index) => (
                                 <div key={index} className="condition-row">
-                                    <span className="latex-label" dangerouslySetInnerHTML={{ __html: getLabel(index, varName) + '(' }}></span>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        className="number-input time-input"
-                                        value={cond.t}
-                                        onChange={(e) => handleConditionChange(index, 't', e.target.value)}
-                                        placeholder="0"
-                                        style={{width: '60px'}}
-                                    />
-                                    <span className="latex-label">) = </span>
+                                    <span className="latex-label" dangerouslySetInnerHTML={{ __html: getLabel(index, varName) + '(' + initialTime + ')' }}></span>
+                                    <span className="latex-label"> = </span>
                                     <input
                                         type="text"
                                         inputMode="decimal"
