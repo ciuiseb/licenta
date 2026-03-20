@@ -9,13 +9,14 @@ class SymbolicSolver:
             y_sym = sympy.Function(var_name)(t_sym)
 
             ics = {}
+            t0 = t_range[0]
 
             if initial_values:
                 for i, val in enumerate(initial_values):
                     if i == 0:
-                        condition_key = y_sym.subs(t_sym, 0)
+                        condition_key = y_sym.subs(t_sym, t0)
                     else:
-                        condition_key = y_sym.diff(t_sym, i).subs(t_sym, 0)
+                        condition_key = y_sym.diff(t_sym, i).subs(t_sym, t0)
 
                     ics[condition_key] = val
 

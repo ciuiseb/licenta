@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
 export const pinnAPI = {
-  async solveCauchy(formula, conditions, tMax, parameters = {}) {
+  async solveCauchy(formula, conditions, equationType, tMax, parameters = {}) {
     return await apiClient.post('/api/math/solve', {
       formula,
       conditions,
@@ -13,10 +13,11 @@ export const pinnAPI = {
     });
   },
 
-  streamTraining(formula, conditions, tMax, parameters = {}) {
+  streamTraining(formula, conditions, equation_type, tMax, parameters = {}) {
     return apiClient.createSSEConnection('/api/math/solve/stream', {
       formula,
       conditions,
+      equation_type,
       tMax,
       parameters
     });

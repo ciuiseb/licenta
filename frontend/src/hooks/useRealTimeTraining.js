@@ -82,6 +82,7 @@ const useRealTimeTraining = () => {
       sseConnectionRef.current = pinnAPI.streamTraining(
           payload.formula,
           payload.conditions,
+          payload.equation_type,
           payload.tMax,
           payload.parameters
       );

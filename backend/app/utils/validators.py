@@ -57,12 +57,16 @@ def validate_solve_request(data):
                 raise ValidationError("'learning_rate' must be between 0 and 1")
         except (ValueError, TypeError):
             raise ValidationError("'learning_rate' must be a valid number")
-    
+
+    equation_type = data.get('equation_type')
+    if equation_type not in ['ivp', 'bvp']:
+        raise ValidationError(f"Equation type {equation_type} is not suported")
     return {
         'formula': formula.strip(),
         'conditions': conditions,
         'tMax': t_max,
-        'parameters': parameters
+        'parameters': parameters,
+        'equation_type': equation_type
     }
 
 def validate_export_request(data):

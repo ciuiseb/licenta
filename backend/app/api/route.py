@@ -23,14 +23,17 @@ current_pinn_solver = None
 
 @math_bp.route('/solve', methods=['POST'])
 @handle_errors
-def solve_cauchy():
+def solve():
     data = request.get_json()
-    
-    validated_data = validate_solve_request(data)
-    formula = validated_data['formula']
-    conditions = validated_data['conditions']
-    t_max = validated_data['tMax']
+    formula, conditions, t_max, equation_type = process_data(data)
 
+    if equation_type == 'ivp':
+        return solve_cauchy(formula, conditions, t_max)
+    else:
+        raise ValidationError(f"Unknown equation type: {equation_type}")
+
+
+def solve_cauchy(formula, conditions, t_max):
     check = validator.validate(formula, conditions)
     if not check['valid']:
         raise ValidationError(check['error'])
@@ -38,19 +41,20 @@ def solve_cauchy():
     parsed_data = check['parsed']
     order = check['order']
     initial_vals = [c['val'] for c in conditions]
+    t0 = float(conditions[0]['t'])
 
     sym_res = symbolic.solve_exact(
         parsed_data['sympy_object'],
         initial_vals,
-        t_range=(0, t_max),
+        t_range=(t0, t_max),
         points=100,
-        var_name=parsed_data['meta'].get('variable', 'y')
+        var_name=parsed_data['meta'].get('variable', 'y'),
     )
 
     num_res = numerical.solve_numerical(
         parsed_data['sympy_object'],
         initial_vals,
-        t_range=(0, t_max),
+        t_range=(t0, t_max),
         var_name=parsed_data['meta'].get('variable', 'y')
     )
 
@@ -61,7 +65,7 @@ def solve_cauchy():
         logger.info("Starting PINN training...")
         pinn_data = pinn_solver.train_model(
             torch_func,
-            initial_vals,
+            conditions,
             t_max_override=t_max
         )
 
@@ -118,6 +122,16 @@ def export_data(format_type):
 
     else:
         raise ValidationError(f"Invalid format type: {format_type}. Supported formats: csv, json")
+def process_data(data):
+    """Extract and process validated request data."""
+    validated_data = validate_solve_request(data)
+
+    formula = validated_data['formula']
+    conditions = validated_data['conditions']
+    t_max = validated_data['tMax']
+    equation_type = validated_data['equation_type']
+    return formula, conditions, t_max, equation_type
+
 @math_bp.route('/solve/stream', methods=['POST', 'OPTIONS'])
 def stream_pinn_training():
     """
@@ -130,11 +144,8 @@ def stream_pinn_training():
     try:
         data = request.get_json()
         logger.info(f"Received data: {data}")
+        formula, conditions, t_max, equation_type = process_data(data)
         
-        validated_data = validate_solve_request(data)
-        formula = validated_data['formula']
-        conditions = validated_data['conditions']
-        t_max = validated_data['tMax']
         logger.info(f"Formula: {formula}, tMax: {t_max}, conditions: {conditions}")
 
         check = validator.validate(formula, conditions)
@@ -154,22 +165,28 @@ def stream_pinn_training():
         parsed_data = check['parsed']
         initial_vals = [c['val'] for c in conditions]
         torch_func = parsed_data['torch_func']
+        validated_data = validate_solve_request(data)
+        t0 = float(conditions[0]['t'])
         custom_params = validated_data.get('parameters', {})
         def generate_training_stream():
             global current_pinn_solver
             try:
-                sym_res = symbolic.solve_exact(
-                    parsed_data['sympy_object'],
-                    initial_vals,
-                    t_range=(0, t_max),
-                    points=100,
-                    var_name=parsed_data['meta'].get('variable', 'y')
-                )
+                if equation_type == 'ivp':
+                    sym_res = symbolic.solve_exact(
+                        parsed_data['sympy_object'],
+                        initial_vals,
+                        t_range=(t0, t_max),
+                        points=100,
+                        var_name=parsed_data['meta'].get('variable', 'y')
+                    )
+                else:
+                    # Handle BVP symbolic solving when implemented
+                    sym_res = {"success": False, "error": "BVP symbolic solver not implemented yet"}
 
                 num_res = numerical.solve_numerical(
                     parsed_data['sympy_object'],
                     initial_vals,
-                    t_range=(0, t_max),
+                    t_range=(t0, t_max),
                     var_name=parsed_data['meta'].get('variable', 'y')
                 )
                 
@@ -199,7 +216,8 @@ def stream_pinn_training():
                 
                 for update in pinn_solver.train_model_stream(
                     torch_func, 
-                    initial_vals, 
+                    conditions,
+                    problem_type=equation_type,
                     t_max_override=t_max,
                     callback=training_callback
                 ):
@@ -207,7 +225,7 @@ def stream_pinn_training():
                 
                 current_pinn_solver = pinn_solver
                 
-                final_result = pinn_solver.get_function_data(0, t_max)
+                final_result = pinn_solver.get_function_data(t0, t_max)
                 final_data = {
                     "type": "training_complete",
                     "success": True,

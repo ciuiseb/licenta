@@ -80,7 +80,6 @@ class PinnService:
         )
 
     def physics_loss(self, t, physics_function):
-
         import inspect
 
         t.requires_grad_(True)
@@ -105,35 +104,53 @@ class PinnService:
         residual = physics_function(t, *derivatives)
         return torch.mean(residual ** 2)
 
-    def boundary_loss(self, initial_conditions):
-        t0 = torch.zeros((1, 1), device=device, requires_grad=True)
-        y0_pred = self.model(t0)
-        target_y0 = torch.tensor([[initial_conditions[0]]], device=device)
-        loss_boundary = torch.mean((y0_pred - target_y0) ** 2)
+    def cauchy_loss(self, conditions):
+        """
+        Calculates loss for Initial Value Problems.
+        Expects a list of dicts: [{'t': t0, 'val': y0}, {'t': t0, 'val': y'0}, ...]
+        """
+        t_val = float(conditions[0]['t'])
+        t0 = torch.tensor([[t_val]], device=device, requires_grad=True)
+        y_pred = self.model(t0)
 
-        if len(initial_conditions) > 1:
-            t0_vel = torch.zeros((1, 1), device=device, requires_grad=True)
-            y0_vel_pred = self.model(t0_vel)
+        loss_cauchy = 0.0
+        current_deriv = y_pred
 
-            dy0_pred = torch.autograd.grad(
-                y0_vel_pred, t0_vel,
-                grad_outputs=torch.ones_like(y0_vel_pred),
-                create_graph=True,
-                retain_graph=True
-            )[0]
+        for i, cond in enumerate(conditions):
+            target_val = float(cond['val'])
+            target_tensor = torch.tensor([[target_val]], device=device)
 
-            target_dy0 = torch.tensor([[initial_conditions[1]]], device=device)
-            loss_boundary += torch.mean((dy0_pred - target_dy0) ** 2)
+            if i == 0:
+                loss_cauchy += torch.mean((current_deriv - target_tensor) ** 2)
+            else:
+                current_deriv = torch.autograd.grad(
+                    current_deriv, t0,
+                    grad_outputs=torch.ones_like(current_deriv),
+                    create_graph=True,
+                    retain_graph=True
+                )[0]
+                loss_cauchy += torch.mean((current_deriv - target_tensor) ** 2)
 
-        return loss_boundary
+        return loss_cauchy
 
-    def train_model(self, physics_function, initial_conditions, t_max_override=None):
+    def bvp_loss(self, conditions):
+        """Placeholder for Boundary Value Problems"""
+        loss_bvp = 0.0
+        # Will be implemented when you build the BVP frontend
+        return loss_bvp
+
+    def train_model(self, physics_function, conditions, problem_type="ivp", t_max_override=None):
         epochs = self.config["training"]["epochs"]
         adam_epochs = self.config["training"].get("adam_epochs", 4000)
         lambda_phys = self.config["loss_weights"]["physics"]
         lambda_bound = self.config["loss_weights"]["boundary"]
 
-        t_min = self.config["domain"]["t_min"]
+        if problem_type == "ivp" and conditions:
+            t_min = float(conditions[0]['t'])
+        elif problem_type == "bvp" and len(conditions) >= 2:
+            t_min = min(float(c['t']) for c in conditions)
+        else:
+            t_min = self.config["domain"]["t_min"]
         t_max = t_max_override if t_max_override is not None else self.config["domain"]["t_max"]
         n_points = self.config["domain"]["training_points"]
 
@@ -144,52 +161,60 @@ class PinnService:
             self.optimizer.zero_grad()
 
             t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
-
             loss_physics = self.physics_loss(t_physics, physics_function)
-            loss_boundary = self.boundary_loss(initial_conditions)
 
-            total_loss = lambda_phys * loss_physics + lambda_bound * loss_boundary
+            if problem_type == "ivp":
+                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "bvp":
+                loss_conditions = self.bvp_loss(conditions)
+            else:
+                loss_conditions = self.cauchy_loss(conditions)
+
+            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
 
             total_loss.backward()
             self.optimizer.step()
 
             if epoch % 500 == 0:
-                print(
-                    f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_boundary.item():.5f})")
+                print(f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
 
         print(f"Phase 2: L-BFGS optimization for {epochs - adam_epochs} epochs")
 
         def closure():
             self.lbfgs_optimizer.zero_grad()
-
             t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
-
             loss_physics = self.physics_loss(t_physics, physics_function)
-            loss_boundary = self.boundary_loss(initial_conditions)
 
-            total_loss = lambda_phys * loss_physics + lambda_bound * loss_boundary
+            if problem_type == "ivp":
+                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "bvp":
+                loss_conditions = self.bvp_loss(conditions)
+            else:
+                loss_conditions = self.cauchy_loss(conditions)
 
+            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
             total_loss.backward()
             return total_loss
 
         for epoch in range(adam_epochs, epochs):
             loss = self.lbfgs_optimizer.step(closure)
-
             if epoch % 100 == 0:
                 print(f"L-BFGS Epoch {epoch}: Loss {loss.item():.5f}")
 
         return self.get_function_data(t_min, t_max)
 
-    def train_model_stream(self, physics_function, initial_conditions, t_max_override=None, callback=None):
-        """
-        Versiunea de training cu streaming pentru actualizări în timp real.
-        Yields progress updates through callback function.
-        """
+    def train_model_stream(self, physics_function, conditions, problem_type="ivp", t_max_override=None, callback=None):
         epochs = self.config["training"]["epochs"]
         lambda_phys = self.config["loss_weights"]["physics"]
         lambda_bound = self.config["loss_weights"]["boundary"]
 
-        t_min = self.config["domain"]["t_min"]
+        # For IVP: use initial condition time as t_min, for BVP: extract min/max from conditions
+        if problem_type == "ivp" and conditions:
+            t_min = float(conditions[0]['t'])
+        elif problem_type == "bvp" and len(conditions) >= 2:
+            t_min = min(float(c['t']) for c in conditions)
+        else:
+            t_min = self.config["domain"]["t_min"]
         t_max = t_max_override if t_max_override is not None else self.config["domain"]["t_max"]
         n_points = self.config["domain"]["training_points"]
 
@@ -199,29 +224,25 @@ class PinnService:
             self.optimizer.zero_grad()
 
             t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
-
             loss_physics = self.physics_loss(t_physics, physics_function)
 
-            loss_boundary = self.boundary_loss(initial_conditions)
+            if problem_type == "ivp":
+                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "bvp":
+                loss_conditions = self.bvp_loss(conditions)
+            else:
+                loss_conditions = self.cauchy_loss(conditions)
 
-            total_loss = lambda_phys * loss_physics + lambda_bound * loss_boundary
-
+            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
             total_loss.backward()
             self.optimizer.step()
 
             if callback and (epoch % 50 == 0 or epoch == epochs - 1):
                 function_data = self.get_function_data(t_min, t_max, points=50)
-                yield callback(
-                    epoch,
-                    loss_physics.item(),
-                    loss_boundary.item(),
-                    total_loss.item(),
-                    function_data
-                )
+                yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
 
             if epoch % 500 == 0:
-                print(
-                    f"Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_boundary.item():.5f})")
+                print(f"Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
 
         return self.get_function_data(t_min, t_max)
 
@@ -242,12 +263,9 @@ class PinnService:
         Returnează valoarea y(t) prezisă de model.
         """
         self.model.eval()
-
         t_tensor = torch.tensor([[t_value]], dtype=torch.float32, device=device)
-
         with torch.no_grad():
             y_pred = self.model(t_tensor)
-
         return y_pred.cpu().item()
 
     def get_function_data(self, t_min, t_max, points=200):
@@ -256,9 +274,7 @@ class PinnService:
         Returnează x, y, și informații despre convergență.
         """
         self.model.eval()
-
         t_eval = torch.linspace(t_min, t_max, points).view(-1, 1).to(device)
-
         with torch.no_grad():
             y_eval = self.model(t_eval)
 
@@ -286,10 +302,8 @@ class PinnService:
         Util pentru a vizualiza cum învață PINN derivatele.
         """
         self.model.eval()
-
         t_eval = torch.linspace(t_min, t_max, points).view(-1, 1).to(device)
         t_eval.requires_grad_(True)
-
         y_eval = self.model(t_eval)
 
         dy_dt = torch.autograd.grad(

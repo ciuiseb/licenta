@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
-import { BlockMath } from 'react-katex';
 
 const getEquationInfo = (formula) => {
     const match = formula.match(/\b([a-zA-Z])'+/);
@@ -104,6 +103,7 @@ const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
         const payload = {
             formula: formula,
             conditions: conditions.map(c => ({ t: parseFloat(initialTime), val: parseFloat(c.val) || 0 })),
+            equation_type: "ivp",
             tMax: parseFloat(tMax),
             parameters: {
                 learning_rate: parameters.learningRate,
