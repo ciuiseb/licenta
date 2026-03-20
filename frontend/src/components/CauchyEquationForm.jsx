@@ -14,7 +14,7 @@ const getEquationInfo = (formula) => {
     return { varName, order };
 };
 
-const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
+const CauchyEquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
     const navigate = useNavigate();
     const [formula, setFormula] = useState("y' + y = 0");
     const [conditions, setConditions] = useState([{ t: 0, val: '1' }]);
@@ -28,9 +28,9 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
         startTraining,
     } = trainingHook;
 
-    const handleConditionChange = (index, value) => {
+    const handleConditionChange = (index, field, value) => {
         const newConditions = [...conditions];
-        newConditions[index].val = value;
+        newConditions[index][field] = value;
         setConditions(newConditions);
     };
 
@@ -67,10 +67,15 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
 
         const numberRegex = /^-?\d*\.?\d+$/;
         for (let i = 0; i < conditions.length; i++) {
-            const val = conditions[i].val.trim();
+            const val = String(conditions[i].val).trim();
+            const t = String(conditions[i].t).trim();
             if (val === '' || !numberRegex.test(val)) {
-                const label = i === 0 ? `${varName}(0)` : i === 1 ? `${varName}'(0)` : `${varName}${'\'' .repeat(i)}(0)`;
+                const label = i === 0 ? `${varName}` : i === 1 ? `${varName}'` : `${varName}^(${i})`;
                 return `Initial condition ${label} must be a valid number${val ? ` (got '${val}')` : ''}.`;
+            }
+            if (t === '' || !numberRegex.test(t)) {
+                const label = i === 0 ? `${varName}` : i === 1 ? `${varName}'` : `${varName}^(${i})`;
+                return `Time for ${label} must be a valid number${t ? ` (got '${t}')` : ''}.`;
             }
         }
 
@@ -143,9 +148,11 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
     };
 
     const getLabel = (index, varName) => {
-        if (index === 0) return `${varName}(0)`;
-        if (index === 1) return `${varName}'(0)`;
-        return `${varName}^(${index})(0)`;
+        if (index === 0) return `${varName}`;
+        if (index === 1) return `${varName}'`;
+        // if (index === 2) return `${varName}''`;
+        // if (index === 3) return `${varName}'''`;
+        return `${varName}<sup>(${index})</sup>`;
     };
 
     const { varName } = getEquationInfo(formula);
@@ -170,17 +177,27 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                     </div>
 
                     <div className="form-group">
-                        <label>Condiții Inițiale (Cauchy)</label>
+                        <label>Condiții Inițiale</label>
                         <div className="conditions-grid">
                             {conditions.map((cond, index) => (
                                 <div key={index} className="condition-row">
-                                    <span className="latex-label">{getLabel(index, varName)} = </span>
+                                    <span className="latex-label" dangerouslySetInnerHTML={{ __html: getLabel(index, varName) + '(' }}></span>
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        className="number-input time-input"
+                                        value={cond.t}
+                                        onChange={(e) => handleConditionChange(index, 't', e.target.value)}
+                                        placeholder="0"
+                                        style={{width: '60px'}}
+                                    />
+                                    <span className="latex-label">) = </span>
                                     <input
                                         type="text"
                                         inputMode="decimal"
                                         className="number-input"
                                         value={cond.val}
-                                        onChange={(e) => handleConditionChange(index, e.target.value)}
+                                        onChange={(e) => handleConditionChange(index, 'val', e.target.value)}
                                         placeholder="0"
                                     />
                                 </div>
@@ -233,7 +250,7 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
                             className={`btn btn-primary btn-block ${isTraining ? 'btn-loading' : ''}`}
                         >
                             <span className="btn-text">
-                                {isTraining ? "Training AI..." : "Start Real-Time Training"}
+                                {isTraining ? "Training AI..." : "Start Training"}
                             </span>
                         </button>
                     </div>
@@ -260,4 +277,4 @@ const EquationForm = ({ trainingHook, parameters, setParameters, useFallback, se
     );
 };
 
-export default EquationForm;
+export default CauchyEquationForm;
