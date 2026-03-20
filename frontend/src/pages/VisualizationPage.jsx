@@ -28,7 +28,6 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
         if (isTraining) {
             stopTraining();
         } else {
-            // If restarting, use saved parameters from original training
             startTraining({
                 formula: parameters.formula,
                 conditions: parameters.conditions || [{ t: 0, val: 1 }],

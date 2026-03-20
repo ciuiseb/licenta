@@ -57,6 +57,10 @@ class APIClient {
     }
   }
 
+  calculateRetryDelay(attempt) {
+    return this.retryDelay * Math.pow(2, attempt);
+  }
+
   async retryRequest(requestFn, retries = this.maxRetries) {
     let lastError;
     
@@ -73,7 +77,7 @@ class APIClient {
           
           if (error.isServerError() || error.isNetworkError() || error.isTimeout()) {
             if (attempt < retries) {
-              const delay = this.retryDelay * Math.pow(2, attempt);
+              const delay = this.calculateRetryDelay(attempt);
               console.log(`Retry attempt ${attempt + 1}/${retries} after ${delay}ms`);
               await new Promise(resolve => setTimeout(resolve, delay));
               continue;
@@ -81,7 +85,7 @@ class APIClient {
           }
         } else {
           if (attempt < retries) {
-            const delay = this.retryDelay * Math.pow(2, attempt);
+            const delay = this.calculateRetryDelay(attempt);
             console.log(`Retry attempt ${attempt + 1}/${retries} after ${delay}ms`);
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
@@ -126,87 +130,58 @@ class APIClient {
     return await response.text();
   }
 
-  async post(endpoint, data, options = {}) {
+  handleError(error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new APIError(
+        'Network error: Unable to connect to server',
+        0,
+        'network',
+        error
+      );
+    }
+
+    throw new APIError(
+      error.message || 'Unknown error occurred',
+      0,
+      'unknown',
+      error
+    );
+  }
+
+  async makeRequest(method, endpoint, data, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     
     const requestFn = async () => {
-      try {
-        const response = await this.fetchWithTimeout(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-          },
-          body: JSON.stringify(data),
-          ...options
-        }, options.timeout);
+      const response = await this.fetchWithTimeout(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        body: data ? JSON.stringify(data) : undefined,
+        ...options
+      }, options.timeout);
 
-        return await this.handleResponse(response);
-      } catch (error) {
-        if (error instanceof APIError) {
-          throw error;
-        }
-        
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          throw new APIError(
-            'Network error: Unable to connect to server',
-            0,
-            'network',
-            error
-          );
-        }
-
-        throw new APIError(
-          error.message || 'Unknown error occurred',
-          0,
-          'unknown',
-          error
-        );
-      }
+      return await this.handleResponse(response);
     };
 
-    return await this.retryRequest(requestFn, options.retries ?? this.maxRetries);
+    try {
+      return await this.retryRequest(requestFn, options.retries ?? this.maxRetries);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  async post(endpoint, data, options = {}) {
+    return this.makeRequest('POST', endpoint, data, options);
   }
 
   async get(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    const requestFn = async () => {
-      try {
-        const response = await this.fetchWithTimeout(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-          },
-          ...options
-        }, options.timeout);
-
-        return await this.handleResponse(response);
-      } catch (error) {
-        if (error instanceof APIError) {
-          throw error;
-        }
-        
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          throw new APIError(
-            'Network error: Unable to connect to server',
-            0,
-            'network',
-            error
-          );
-        }
-
-        throw new APIError(
-          error.message || 'Unknown error occurred',
-          0,
-          'unknown',
-          error
-        );
-      }
-    };
-
-    return await this.retryRequest(requestFn, options.retries ?? this.maxRetries);
+    return this.makeRequest('GET', endpoint, null, options);
   }
 
   createSSEConnection(endpoint, data, options = {}) {

@@ -36,7 +36,6 @@ const RealTimeVisualization = ({
                                    progress,
                                    connectionStatus,
                                    onToggleTraining,
-                                   onReset,
                                    onParameterChange,
                                    parameters
                                }) => {
@@ -307,7 +306,6 @@ const RealTimeVisualization = ({
         <div className="visualization-container">
             <div className="card visualization-card">
                 <div className="card-header">
-                    <h2>Real-Time PINN Training</h2>
                     <div className="training-status">
                         <div className="connection-status" style={{color: getConnectionStatus().color}}>
                             <span className="status-dot" style={{backgroundColor: getConnectionStatus().color}}></span>
@@ -346,7 +344,7 @@ const RealTimeVisualization = ({
 
                     <div className="chart-container">
                         <div className="chart-header">
-                            <h3>PINN Solution</h3>
+                            <h3>Graphic solutions</h3>
                             {trainingData && (
                                 <div className="chart-actions">
                                     <button onClick={resetZoom} className="btn btn-small btn-secondary">
@@ -370,7 +368,7 @@ const RealTimeVisualization = ({
                         try {
                             return (
                                 <div className="formula-display">
-                                    <h3>Symbolic Solution</h3>
+                                    <h3>Symbolic solution</h3>
                                     <div className="formula-content">
                                         {symbolicData.latex ? (
                                             <InlineMath math={symbolicData.latex} errorColor="#ef4444" />
@@ -401,14 +399,6 @@ const RealTimeVisualization = ({
                             disabled={!parameters?.formula || connectionStatus === 'connecting'}
                         >
                             {isTraining ? 'Stop Training' : 'Start Training'}
-                        </button>
-
-                        <button
-                            onClick={onReset}
-                            className="btn btn-secondary"
-                            disabled={isTraining}
-                        >
-                            Reset
                         </button>
                     </div>
 
