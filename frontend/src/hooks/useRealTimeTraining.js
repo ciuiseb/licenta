@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import pinnAPI from '../services/pinnAPI';
 import { APIError } from '../services/apiClient';
 
-const useRealTimeTraining = (baseUrl = '') => {
+const useRealTimeTraining = () => {
   const [isTraining, setIsTraining] = useState(false);
   const [trainingData, setTrainingData] = useState(null);
   const [numericalData, setNumericalData] = useState(null);
@@ -21,7 +21,6 @@ const useRealTimeTraining = (baseUrl = '') => {
   const statsIntervalRef = useRef(null);
   const lastEpochTimeRef = useRef(null);
 
-  // Removed setConnectionStatus('disconnected') from here so it doesn't overwrite errors
   const cleanup = useCallback(() => {
     if (sseConnectionRef.current) {
       sseConnectionRef.current.abort();
@@ -105,7 +104,7 @@ const useRealTimeTraining = (baseUrl = '') => {
               }
               break;
 
-            case 'epoch_update':
+            case 'epoch_update': {
               const epochTime = Date.now();
               if (lastEpochTimeRef.current) {
                 const timeDiff = (epochTime - lastEpochTimeRef.current) / 1000;
@@ -134,6 +133,7 @@ const useRealTimeTraining = (baseUrl = '') => {
                 setLossData(data.loss);
               }
               break;
+            }
 
             case 'training_complete':
               console.log('Training completed:', data);
@@ -168,7 +168,7 @@ const useRealTimeTraining = (baseUrl = '') => {
       } catch (streamError) {
         if (streamError.name === 'AbortError') {
           console.log('Training aborted by user');
-          setConnectionStatus('disconnected'); // Explicitly handle disconnect here
+          setConnectionStatus('disconnected');
           return;
         }
         throw streamError;
@@ -188,7 +188,7 @@ const useRealTimeTraining = (baseUrl = '') => {
     cleanup();
     setIsTraining(false);
     setProgress(prev => ({ ...prev, completed: false }));
-    setConnectionStatus('disconnected'); // Explicitly handle disconnect here
+    setConnectionStatus('disconnected');
   }, [cleanup]);
 
   const reset = useCallback(() => {
@@ -205,7 +205,7 @@ const useRealTimeTraining = (baseUrl = '') => {
       epochsPerSecond: 0
     });
     setError(null);
-    setConnectionStatus('disconnected'); // Explicitly handle disconnect here
+    setConnectionStatus('disconnected');
   }, [cleanup]);
 
   useEffect(() => {

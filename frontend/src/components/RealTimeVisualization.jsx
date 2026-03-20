@@ -41,7 +41,6 @@ const RealTimeVisualization = ({
                                    parameters
                                }) => {
     const chartRef = useRef(null);
-    const [historicalData, setHistoricalData] = useState([]);
     const [currentEpoch, setCurrentEpoch] = useState(0);
     const updateTimeoutRef = useRef(null);
 
@@ -100,10 +99,6 @@ const RealTimeVisualization = ({
 
             if (progress.current !== currentEpoch) {
                 setCurrentEpoch(progress.current);
-                setHistoricalData(prev => {
-                    const newHistory = [...prev, {epoch: progress.current, x, y}];
-                    return newHistory.slice(-5);
-                });
             }
 
             datasets.push(createDataset(
@@ -140,7 +135,6 @@ const RealTimeVisualization = ({
 
     useEffect(() => {
         if (!isTraining && progress.current === 0) {
-            setHistoricalData([]);
             setCurrentEpoch(0);
         }
     }, [isTraining, progress.current]);
