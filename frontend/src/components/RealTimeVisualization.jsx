@@ -13,6 +13,7 @@ import {
 import {Line} from 'react-chartjs-2';
 import {InlineMath} from 'react-katex';
 import 'katex/dist/katex.min.css';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import pinnAPI from '../services/pinnAPI';
 
 ChartJS.register(
@@ -23,7 +24,8 @@ ChartJS.register(
     Title,
     Tooltip,
     Legend,
-    Filler
+    Filler,
+    zoomPlugin
 );
 
 const RealTimeVisualization = ({
@@ -222,21 +224,19 @@ const RealTimeVisualization = ({
                         color: '#e5e7eb',
                         font: {
                             size: 12
-                        }
+                        },
+                        usePointStyle: true,
+                        padding: 20
+                    },
+                    onClick: (e, legendItem, legend) => {
+                        const index = legendItem.datasetIndex;
+                        const chart = legend.chart;
+                        const meta = chart.getDatasetMeta(index);
+                        
+                        meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                        chart.update();
                     }
                 },
-                // title: {
-                //   display: isTraining,
-                //   text: `Building Graph - Epoch ${progress.current}/${progress.total}`,
-                //   color: '#60a5fa',
-                //   font: {
-                //     size: 14,
-                //     weight: 'bold'
-                //   },
-                //   padding: {
-                //     bottom: 20
-                //   }
-                // },
                 tooltip: {
                     backgroundColor: '#1f2937',
                     titleColor: '#e5e7eb',
@@ -257,6 +257,25 @@ const RealTimeVisualization = ({
                             label += `y = ${context.parsed.y.toFixed(6)}`;
                             return label;
                         }
+                    }
+                },
+                zoom: {
+                    zoom: {
+                        wheel: {
+                            enabled: true,
+                            speed: 0.1
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        mode: 'xy',
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'xy',
+                    },
+                    limits: {
+                        y: {min: yBounds.min, max: yBounds.max}
                     }
                 }
             }
@@ -314,6 +333,12 @@ const RealTimeVisualization = ({
         }
     };
 
+    const resetZoom = () => {
+        if (chartRef.current) {
+            chartRef.current.resetZoom();
+        }
+    };
+
     return (
         <div className="visualization-container">
             <div className="card visualization-card">
@@ -360,6 +385,9 @@ const RealTimeVisualization = ({
                             <h3>PINN Solution</h3>
                             {trainingData && (
                                 <div className="chart-actions">
+                                    <button onClick={resetZoom} className="btn btn-small btn-secondary">
+                                        Reset Zoom
+                                    </button>
                                     <button onClick={exportChart} className="btn btn-small btn-secondary">
                                         Export Graph
                                     </button>
