@@ -126,24 +126,18 @@ def stream_pinn_training():
     """
     if request.method == 'OPTIONS':
         return '', 200
-    
-    logger.info("=== STREAM ENDPOINT CALLED ===")
-    
+
     try:
         data = request.get_json()
         logger.info(f"Received data: {data}")
         
         validated_data = validate_solve_request(data)
-        logger.info(f"Validation passed")
         formula = validated_data['formula']
         conditions = validated_data['conditions']
         t_max = validated_data['tMax']
         logger.info(f"Formula: {formula}, tMax: {t_max}, conditions: {conditions}")
 
-        logger.info("Calling validator.validate()...")
         check = validator.validate(formula, conditions)
-        logger.info(f"Validator returned: valid={check.get('valid')}")
-        
         if not check['valid']:
             logger.error(f"Validation failed: {check.get('error')}")
             error_data = {
@@ -157,18 +151,13 @@ def stream_pinn_training():
                 status=400
             )
 
-        logger.info("Extracting parsed data...")
         parsed_data = check['parsed']
         initial_vals = [c['val'] for c in conditions]
         torch_func = parsed_data['torch_func']
         custom_params = validated_data.get('parameters', {})
-        logger.info(f"Parsed data extracted successfully, custom_params: {custom_params}")
-
         def generate_training_stream():
             global current_pinn_solver
             try:
-                logger.info("Computing numerical and symbolic solutions...")
-
                 sym_res = symbolic.solve_exact(
                     parsed_data['sympy_object'],
                     initial_vals,
@@ -193,8 +182,6 @@ def stream_pinn_training():
                 yield f"data: {json.dumps(initial_data)}\n\n"
                 
                 pinn_solver = PinnService(custom_params=custom_params)
-                logger.info(f"Starting streaming PINN training for formula: {formula}")
-                logger.info(f"Custom parameters: {custom_params}")
                 
                 def training_callback(epoch, loss_physics, loss_boundary, total_loss, function_data):
                     update_data = {
@@ -228,8 +215,7 @@ def stream_pinn_training():
                     "timestamp": time.time()
                 }
                 yield f"data: {json.dumps(final_data)}\n\n"
-                logger.info("PINN training completed successfully")
-                
+
             except Exception as e:
                 import traceback
                 error_trace = traceback.format_exc()
@@ -243,7 +229,6 @@ def stream_pinn_training():
                 }
                 yield f"data: {json.dumps(error_data)}\n\n"
 
-        logger.info("Creating streaming response...")
         response = Response(
             stream_with_context(generate_training_stream()),
             mimetype='text/event-stream',
@@ -253,7 +238,6 @@ def stream_pinn_training():
                 'X-Accel-Buffering': 'no'
             }
         )
-        logger.info("Streaming response created successfully")
         return response
     except ValidationError as e:
         import traceback
