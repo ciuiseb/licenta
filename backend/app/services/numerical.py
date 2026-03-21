@@ -3,7 +3,7 @@ from scipy.integrate import solve_ivp
 import sympy
 
 class NumericalSolver:
-    def solve_numerical(self, equation_expr, initial_conditions, t_range=(0, 10), points=100, var_name='y'):
+    def solve_numerical(self, equation_expr, conditions, t_range=(0, 10), points=100, var_name='y'):
         t_sym = sympy.Symbol('t')
         func_sym = sympy.Function(var_name)(t_sym)
 
@@ -19,8 +19,8 @@ class NumericalSolver:
             if highest_order == 0:
                 highest_order = 1
 
-            if len(initial_conditions) != highest_order:
-                raise ValueError(f"Ecuația este de ordin {highest_order}, dar ai oferit {len(initial_conditions)} condiții inițiale.")
+            if len(conditions) != highest_order:
+                raise ValueError(f"Ecuația este de ordin {highest_order}, dar ai oferit {len(conditions)} condiții inițiale.")
 
             highest_deriv_term = func_sym.diff(t_sym, highest_order)
 
@@ -47,7 +47,7 @@ class NumericalSolver:
             solution = solve_ivp(
                 ode_system,
                 t_range,
-                initial_conditions,
+                conditions,
                 method='RK45',
                 t_eval=t_eval
             )
