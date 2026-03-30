@@ -156,8 +156,8 @@ const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
     const getLabel = (index, varName) => {
         if (index === 0) return `${varName}`;
         if (index === 1) return `${varName}'`;
-        // if (index === 2) return `${varName}''`;
-        // if (index === 3) return `${varName}'''`;
+        if (index === 2) return `${varName}''`;
+        if (index === 3) return `${varName}'''`;
         return `${varName}<sup>(${index})</sup>`;
     };
 
@@ -184,9 +184,10 @@ const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
 
                     <div className="form-group">
                         <label>Condiții Inițiale</label>
-                        
-                        <div className="form-group" style={{ marginBottom: '15px' }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>Initial point t = </label>
+
+                        <div className="condition-row" style={{marginBottom: '15px'}}>
+                            <span className="latex-label">Initial point t </span>
+                            <span className="latex-label"> = </span>
                             <input
                                 type="text"
                                 inputMode="decimal"
@@ -194,14 +195,14 @@ const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
                                 value={initialTime}
                                 onChange={(e) => handleInitialTimeChange(e.target.value)}
                                 placeholder="0"
-                                style={{ width: '80px', marginLeft: '10px' }}
                             />
                         </div>
-                        
+
                         <div className="conditions-grid">
                             {conditions.map((cond, index) => (
                                 <div key={index} className="condition-row">
-                                    <span className="latex-label" dangerouslySetInnerHTML={{ __html: getLabel(index, varName) + '(' + initialTime + ')' }}></span>
+                                    <span className="latex-label"
+                                          dangerouslySetInnerHTML={{__html: getLabel(index, varName) + '(' + initialTime + ')'}}></span>
                                     <span className="latex-label"> = </span>
                                     <input
                                         type="text"

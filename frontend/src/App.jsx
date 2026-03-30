@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import IVPEquationForm from './components/IVPEquationForm.jsx';
+import React, {useState} from 'react';
+import {Route, Routes} from 'react-router-dom';
 import VisualizationPage from './pages/VisualizationPage';
 import useRealTimeTraining from './hooks/useRealTimeTraining';
 import useFallbackTraining from './hooks/useFallbackTraining';
 import './App.css';
+
+import SetupPage from './components/SetupPage';
 
 function App() {
     const [useFallback, setUseFallback] = useState(false);
@@ -20,7 +21,7 @@ function App() {
     const trainingHook = useFallback ? fallbackTrainingHook : realTimeTrainingHook;
 
     const handleParameterChange = (param, value) => {
-        setParameters(prev => ({ ...prev, [param]: value }));
+        setParameters(prev => ({...prev, [param]: value}));
     };
 
     return (
@@ -28,7 +29,7 @@ function App() {
             <main>
                 <Routes>
                     <Route path="/" element={
-                        <IVPEquationForm
+                        <SetupPage
                             trainingHook={trainingHook}
                             parameters={parameters}
                             setParameters={setParameters}
@@ -36,14 +37,14 @@ function App() {
                             setUseFallback={setUseFallback}
                             onParameterChange={handleParameterChange}
                         />
-                    } />
+                    }/>
                     <Route path="/visualization" element={
                         <VisualizationPage
                             trainingHook={trainingHook}
                             parameters={parameters}
                             onParameterChange={handleParameterChange}
                         />
-                    } />
+                    }/>
                 </Routes>
             </main>
         </div>
