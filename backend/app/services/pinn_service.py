@@ -134,9 +134,26 @@ class PinnService:
         return loss_cauchy
 
     def bvp_loss(self, conditions):
-        """Placeholder for Boundary Value Problems"""
         loss_bvp = 0.0
-        return loss_bvp
+        for cond in conditions:
+            t_val = float(cond['t'])
+            target_val = float(cond['val'])
+            order = int(cond.get('order', 0))
+
+            t_tensor = torch.tensor([[t_val]], device=device, requires_grad=True)
+            current_pred = self.model(t_tensor)
+
+            for _ in range(order):
+                current_pred = torch.autograd.grad(
+                    current_pred, t_tensor,
+                    grad_outputs=torch.ones_like(current_pred),
+                    create_graph=True,
+                    retain_graph=True
+                )[0]
+
+            target_tensor = torch.tensor([[target_val]], device=device)
+            loss_bvp += torch.mean((current_pred - target_tensor) ** 2)
+        return loss_bvp / len(conditions) if conditions else torch.tensor(0.0, device=device)
 
     def train_model(self, physics_function, conditions, problem_type="ivp", t_max_override=None):
         epochs = self.config["training"]["epochs"]
@@ -166,8 +183,9 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            else:
-                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "ode":
+                #TODO
+                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
 
@@ -188,8 +206,9 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            else:
-                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "ode":
+                #TODO
+                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
             total_loss.backward()
@@ -228,8 +247,9 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            else:
-                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "ode":
+                #TODO
+                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
             total_loss.backward()

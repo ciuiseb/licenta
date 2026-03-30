@@ -59,7 +59,7 @@ def validate_solve_request(data):
             raise ValidationError("'learning_rate' must be a valid number")
 
     equation_type = data.get('equation_type')
-    if equation_type not in ['ivp', 'bvp']:
+    if equation_type not in ['ode', 'ivp', 'bvp']:
         raise ValidationError(f"Equation type {equation_type} is not suported")
     return {
         'formula': formula.strip(),

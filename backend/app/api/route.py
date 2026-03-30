@@ -28,34 +28,34 @@ def solve():
     formula, conditions, t_max, equation_type = process_data(data)
 
     if equation_type == 'ivp':
-        return solve_cauchy(formula, conditions, t_max)
+        return solve_cauchy(formula, conditions, t_max, equation_type)
     else:
         raise ValidationError(f"Unknown equation type: {equation_type}")
 
 
-def solve_cauchy(formula, conditions, t_max):
+def solve_cauchy(formula, conditions, t_max, equation_type):
     check = validator.validate(formula, conditions)
     if not check['valid']:
         raise ValidationError(check['error'])
 
     parsed_data = check['parsed']
     order = check['order']
-    initial_vals = [c['val'] for c in conditions]
     t0 = float(conditions[0]['t'])
 
     sym_res = symbolic.solve_exact(
         parsed_data['sympy_object'],
-        initial_vals,
+        conditions,
         t_range=(t0, t_max),
         points=100,
-        var_name=parsed_data['meta'].get('variable', 'y'),
+        var_name=parsed_data['meta'].get('variable'),
     )
 
     num_res = numerical.solve_numerical(
         parsed_data['sympy_object'],
-        initial_vals,
+        conditions,
+        equation_type=equation_type,
         t_range=(t0, t_max),
-        var_name=parsed_data['meta'].get('variable', 'y')
+        var_name=parsed_data['meta'].get('variable')
     )
 
     pinn_res = None
@@ -174,7 +174,7 @@ def stream_pinn_training():
                 if equation_type == 'ivp':
                     sym_res = symbolic.solve_exact(
                         parsed_data['sympy_object'],
-                        initial_vals,
+                        conditions,
                         t_range=(t0, t_max),
                         points=100,
                         var_name=parsed_data['meta'].get('variable', 'y')
