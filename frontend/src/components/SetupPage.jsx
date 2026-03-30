@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import IVPEquationForm from './IVPEquationForm';
-
-const BVPEquationFormPlaceholder = () => {
-    return (
-        <div className="card form-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <h2>Configurare Ecuație (BVP)</h2>
-            <p style={{ marginTop: '20px', color: '#666' }}>
-                Boundary Value Problem shall come
-            </p>
-        </div>
-    );
-};
+import BVPEquationForm from "./BVPEquationForm.jsx";
 
 const SetupPage = (props) => {
     const [activeTab, setActiveTab] = useState('ivp');
@@ -38,7 +28,7 @@ const SetupPage = (props) => {
                 {activeTab === 'ivp' ? (
                     <IVPEquationForm {...props} />
                 ) : (
-                    <BVPEquationFormPlaceholder {...props} />
+                    <BVPEquationForm {...props} />
                 )}
             </div>
         </div>
