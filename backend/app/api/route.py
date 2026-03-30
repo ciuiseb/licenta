@@ -27,13 +27,13 @@ def solve():
     data = request.get_json()
     formula, conditions, t_max, equation_type = process_data(data)
 
-    if equation_type == 'ivp':
-        return solve_cauchy(formula, conditions, t_max, equation_type)
+    if equation_type in ['ivp', 'bvp']:
+        return _solve_equation(formula, conditions, t_max, equation_type)
     else:
         raise ValidationError(f"Unknown equation type: {equation_type}")
 
 
-def solve_cauchy(formula, conditions, t_max, equation_type):
+def _solve_equation(formula, conditions, t_max, equation_type):
     check = validator.validate(formula, conditions)
     if not check['valid']:
         raise ValidationError(check['error'])
@@ -163,7 +163,6 @@ def stream_pinn_training():
             )
 
         parsed_data = check['parsed']
-        initial_vals = [c['val'] for c in conditions]
         torch_func = parsed_data['torch_func']
         validated_data = validate_solve_request(data)
         t0 = float(conditions[0]['t'])
@@ -171,25 +170,22 @@ def stream_pinn_training():
         def generate_training_stream():
             global current_pinn_solver
             try:
-                if equation_type == 'ivp':
-                    sym_res = symbolic.solve_exact(
-                        parsed_data['sympy_object'],
-                        conditions,
-                        t_range=(t0, t_max),
-                        points=100,
-                        var_name=parsed_data['meta'].get('variable', 'y')
-                    )
-                else:
-                    # Handle BVP symbolic solving when implemented
-                    sym_res = {"success": False, "error": "BVP symbolic solver not implemented yet"}
+                sym_res = symbolic.solve_exact(
+                    parsed_data['sympy_object'],
+                    conditions,
+                    t_range=(t0, t_max),
+                    points=100,
+                    var_name=parsed_data['meta'].get('variable', 'y')
+                )
 
                 num_res = numerical.solve_numerical(
                     parsed_data['sympy_object'],
-                    initial_vals,
+                    conditions,
+                    equation_type=equation_type,
                     t_range=(t0, t_max),
                     var_name=parsed_data['meta'].get('variable', 'y')
                 )
-                
+
                 initial_data = {
                     "type": "initial_solutions",
                     "numerical": num_res,
@@ -197,9 +193,8 @@ def stream_pinn_training():
                     "timestamp": time.time()
                 }
                 yield f"data: {json.dumps(initial_data)}\n\n"
-                
                 pinn_solver = PinnService(custom_params=custom_params)
-                
+
                 def training_callback(epoch, loss_physics, loss_boundary, total_loss, function_data):
                     update_data = {
                         "type": "epoch_update",
@@ -213,18 +208,18 @@ def stream_pinn_training():
                         "timestamp": time.time()
                     }
                     return f"data: {json.dumps(update_data)}\n\n"
-                
+
                 for update in pinn_solver.train_model_stream(
-                    torch_func, 
-                    conditions,
-                    problem_type=equation_type,
-                    t_max_override=t_max,
-                    callback=training_callback
+                        torch_func,
+                        conditions,
+                        problem_type=equation_type,
+                        t_max_override=t_max,
+                        callback=training_callback
                 ):
                     yield update
-                
+
                 current_pinn_solver = pinn_solver
-                
+
                 final_result = pinn_solver.get_function_data(t0, t_max)
                 final_data = {
                     "type": "training_complete",
