@@ -5,6 +5,7 @@ export const pinnAPI = {
     return await apiClient.post('/api/math/solve', {
       formula,
       conditions,
+      equation_type: equationType,
       tMax,
       parameters
     }, {
@@ -34,8 +35,9 @@ export const pinnAPI = {
     });
   },
 
-  async evaluatePoint(t) {
+  async evaluatePoint(modelId, t) {
     return await apiClient.post('/api/math/evaluate', {
+      model_id: modelId,
       t: t
     }, {
       timeout: 5000,

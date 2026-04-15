@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify, Response, stream_with_context
 import json
 import time
 import logging
+import uuid
+import sympy
 from app.services.validator import CauchyValidator
 from app.services.numerical import NumericalSolver
 from app.services.symbolic import SymbolicSolver
@@ -11,6 +13,8 @@ from app.utils.error_handler import handle_errors, ValidationError, ServerError
 from app.utils.validators import validate_solve_request, validate_export_request
 
 logger = logging.getLogger(__name__)
+PINN_MODEL_TTL_SECONDS = 3600
+STREAM_MAX_DURATION_SECONDS = 1800
 
 math_bp = Blueprint('math', __name__)
 
@@ -19,7 +23,65 @@ numerical = NumericalSolver()
 symbolic = SymbolicSolver()
 exporter = ExportService()
 
-current_pinn_solver = None
+active_pinn_solvers = {}
+
+
+def _get_t_range_start(conditions, equation_type):
+    if equation_type == 'bvp' and conditions:
+        return min(float(cond['t']) for cond in conditions)
+    return float(conditions[0]['t'])
+
+
+def _cleanup_expired_pinn_solvers():
+    current_time = time.time()
+    expired_model_ids = [
+        model_id
+        for model_id, model_entry in active_pinn_solvers.items()
+        if current_time - model_entry["created_at"] > PINN_MODEL_TTL_SECONDS
+    ]
+    for model_id in expired_model_ids:
+        active_pinn_solvers.pop(model_id, None)
+
+
+def _store_pinn_solver(pinn_solver):
+    _cleanup_expired_pinn_solvers()
+    model_id = str(uuid.uuid4())
+    active_pinn_solvers[model_id] = {
+        "solver": pinn_solver,
+        "created_at": time.time()
+    }
+    return model_id
+
+
+def _get_pinn_solver(model_id):
+    _cleanup_expired_pinn_solvers()
+    model_entry = active_pinn_solvers.get(model_id)
+    return model_entry["solver"] if model_entry else None
+
+
+def _remove_pinn_solver(model_id):
+    if model_id:
+        active_pinn_solvers.pop(model_id, None)
+
+
+def _json_default(value):
+    if isinstance(value, sympy.Basic):
+        if value.is_real:
+            return float(value)
+        return str(value)
+
+    item_method = getattr(value, 'item', None)
+    if callable(item_method):
+        try:
+            return value.item()
+        except Exception:
+            pass
+
+    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
+
+
+def _sse_data(payload):
+    return f"data: {json.dumps(payload, default=_json_default)}\n\n"
 
 @math_bp.route('/solve', methods=['POST'])
 @handle_errors
@@ -40,7 +102,7 @@ def _solve_equation(formula, conditions, t_max, equation_type):
 
     parsed_data = check['parsed']
     order = check['order']
-    t0 = float(conditions[0]['t'])
+    t0 = _get_t_range_start(conditions, equation_type)
 
     sym_res = symbolic.solve_exact(
         parsed_data['sympy_object'],
@@ -66,6 +128,7 @@ def _solve_equation(formula, conditions, t_max, equation_type):
         pinn_data = pinn_solver.train_model(
             torch_func,
             conditions,
+            problem_type=equation_type,
             t_max_override=t_max
         )
 
@@ -157,18 +220,18 @@ def stream_pinn_training():
                 "timestamp": time.time()
             }
             return Response(
-                f"data: {json.dumps(error_data)}\n\n",
+                _sse_data(error_data),
                 mimetype='text/event-stream',
                 status=400
             )
 
         parsed_data = check['parsed']
         torch_func = parsed_data['torch_func']
-        validated_data = validate_solve_request(data)
-        t0 = float(conditions[0]['t'])
-        custom_params = validated_data.get('parameters', {})
+        t0 = _get_t_range_start(conditions, equation_type)
+        custom_params = data.get('parameters', {})
         def generate_training_stream():
-            global current_pinn_solver
+            training_start_time = time.time()
+            model_id = None
             try:
                 sym_res = symbolic.solve_exact(
                     parsed_data['sympy_object'],
@@ -192,10 +255,13 @@ def stream_pinn_training():
                     "symbolic": sym_res,
                     "timestamp": time.time()
                 }
-                yield f"data: {json.dumps(initial_data)}\n\n"
+                yield _sse_data(initial_data)
                 pinn_solver = PinnService(custom_params=custom_params)
+                model_id = _store_pinn_solver(pinn_solver)
 
                 def training_callback(epoch, loss_physics, loss_boundary, total_loss, function_data):
+                    if time.time() - training_start_time > STREAM_MAX_DURATION_SECONDS:
+                        raise ServerError("Training stream timed out")
                     update_data = {
                         "type": "epoch_update",
                         "epoch": epoch,
@@ -207,7 +273,7 @@ def stream_pinn_training():
                         "function_data": function_data,
                         "timestamp": time.time()
                     }
-                    return f"data: {json.dumps(update_data)}\n\n"
+                    return _sse_data(update_data)
 
                 for update in pinn_solver.train_model_stream(
                         torch_func,
@@ -218,16 +284,15 @@ def stream_pinn_training():
                 ):
                     yield update
 
-                current_pinn_solver = pinn_solver
-
                 final_result = pinn_solver.get_function_data(t0, t_max)
                 final_data = {
                     "type": "training_complete",
                     "success": True,
+                    "model_id": model_id,
                     "final_data": final_result,
                     "timestamp": time.time()
                 }
-                yield f"data: {json.dumps(final_data)}\n\n"
+                yield _sse_data(final_data)
 
             except Exception as e:
                 import traceback
@@ -237,10 +302,10 @@ def stream_pinn_training():
                 error_data = {
                     "type": "training_error",
                     "error": str(e),
-                    "traceback": error_trace,
                     "timestamp": time.time()
                 }
-                yield f"data: {json.dumps(error_data)}\n\n"
+                yield _sse_data(error_data)
+                _remove_pinn_solver(model_id)
 
         response = Response(
             stream_with_context(generate_training_stream()),
@@ -262,7 +327,7 @@ def stream_pinn_training():
             "timestamp": time.time()
         }
         return Response(
-            f"data: {json.dumps(error_data)}\n\n",
+            _sse_data(error_data),
             mimetype='text/event-stream',
             status=400
         )
@@ -276,7 +341,7 @@ def stream_pinn_training():
             "timestamp": time.time()
         }
         return Response(
-            f"data: {json.dumps(error_data)}\n\n",
+            _sse_data(error_data),
             mimetype='text/event-stream',
             status=500
         )
@@ -286,14 +351,20 @@ def stream_pinn_training():
 def evaluate_point():
     """
     Evaluate the trained PINN model at a specific point.
-    Requires a trained model from previous /solve/stream call.
+    Requires a model_id returned from a previous /solve/stream call.
     """
-    global current_pinn_solver
-    
-    if current_pinn_solver is None:
-        raise ValidationError("No trained model available. Please train a model first using /solve/stream")
-    
     data = request.get_json()
+
+    if not data:
+        raise ValidationError("Request body is required")
+
+    model_id = data.get('model_id')
+    if not model_id or not isinstance(model_id, str):
+        raise ValidationError("Missing required parameter: 'model_id'")
+
+    pinn_solver = _get_pinn_solver(model_id)
+    if pinn_solver is None:
+        raise ValidationError("No trained model available for the provided model_id. Please train a model first using /solve/stream")
     
     if 't' not in data:
         raise ValidationError("Missing required parameter: 't'")
@@ -303,10 +374,11 @@ def evaluate_point():
     except (ValueError, TypeError):
         raise ValidationError(f"Invalid value for 't': {data['t']}. Must be a number.")
     
-    y_value = current_pinn_solver.evaluate_at_point(t_value)
+    y_value = pinn_solver.evaluate_at_point(t_value)
     
     return jsonify({
         "success": True,
+        "model_id": model_id,
         "t": t_value,
         "y": y_value
     })

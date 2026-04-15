@@ -33,6 +33,7 @@ const RealTimeVisualization = ({
                                    trainingData,
                                    numericalData,
                                    symbolicData,
+                                   modelId,
                                    progress,
                                    connectionStatus,
                                    onToggleTraining,
@@ -138,9 +139,22 @@ const RealTimeVisualization = ({
         }
     }, [isTraining, progress.current]);
 
+    useEffect(() => {
+        setEvalResult(null);
+        setEvalError(null);
+        if (isTraining || !modelId) {
+            setEvalPoint('');
+        }
+    }, [isTraining, modelId]);
+
     const chartOptions = useMemo(() => {
-        const xMin = parameters?.t_min || 0;
-        const xMax = parameters?.t_max || 10;
+        const conditionTimes = Array.isArray(parameters?.conditions)
+            ? parameters.conditions
+                .map((cond) => Number(cond?.t))
+                .filter((value) => !Number.isNaN(value))
+            : [];
+        const xMin = conditionTimes.length > 0 ? Math.min(...conditionTimes) : 0;
+        const xMax = Number(parameters?.tMax ?? 10);
 
         return {
             responsive: true,
@@ -478,7 +492,11 @@ const RealTimeVisualization = ({
                                         setEvalResult(null);
 
                                         try {
-                                            const result = await pinnAPI.evaluatePoint(parseFloat(evalPoint));
+                                            if (!modelId) {
+                                                throw new Error('No trained model available yet. Please wait for training to complete.');
+                                            }
+
+                                            const result = await pinnAPI.evaluatePoint(modelId, parseFloat(evalPoint));
                                             setEvalResult(result);
                                         } catch (error) {
                                             setEvalError(error.message || 'Failed to evaluate point');
@@ -487,7 +505,7 @@ const RealTimeVisualization = ({
                                         }
                                     }}
                                     className="btn btn-primary"
-                                    disabled={isEvaluating || !evalPoint.trim()}
+                                    disabled={isEvaluating || !evalPoint.trim() || !modelId}
                                 >
                                     {isEvaluating ? 'Evaluating...' : 'Evaluate'}
                                 </button>

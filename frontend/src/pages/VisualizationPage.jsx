@@ -10,6 +10,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
         trainingData,
         numericalData,
         symbolicData,
+        modelId,
         lossData,
         progress,
         connectionStatus,
@@ -31,6 +32,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
             startTraining({
                 formula: parameters.formula,
                 conditions: parameters.conditions || [{ t: 0, val: 1 }],
+                equation_type: parameters.equation_type || 'ivp',
                 tMax: parameters.tMax || 10,
                 parameters: {
                     learning_rate: parameters.learningRate,
@@ -79,6 +81,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                     trainingData={trainingData}
                     numericalData={numericalData}
                     symbolicData={symbolicData}
+                    modelId={modelId}
                     lossData={lossData}
                     progress={progress}
                     connectionStatus={connectionStatus}

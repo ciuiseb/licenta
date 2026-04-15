@@ -10,7 +10,7 @@
   },
   "loss_weights": {
     "physics": 1.0,
-    "boundary": 100.0
+    "boundary": 1.0
   },
   "domain": {
     "t_min": 0.0,

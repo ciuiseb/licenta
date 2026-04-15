@@ -12,6 +12,9 @@ def validate_solve_request(data):
     if len(formula.strip()) == 0:
         raise ValidationError("'formula' cannot be empty")
     
+    if len(formula) > 500:
+        raise ValidationError("'formula' is too long (max 500 characters)")
+    
     conditions = data.get('conditions', [])
     if not isinstance(conditions, list):
         raise ValidationError("'conditions' must be a list")

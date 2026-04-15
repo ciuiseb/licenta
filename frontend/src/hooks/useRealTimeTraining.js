@@ -2,19 +2,23 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import pinnAPI from '../services/pinnAPI';
 import { APIError } from '../services/apiClient';
 
+const DEFAULT_PROGRESS = { current: 0, total: 5000, completed: false };
+const DEFAULT_TRAINING_STATS = {
+  startTime: null,
+  elapsedTime: 0,
+  epochsPerSecond: 0
+};
+
 const useRealTimeTraining = () => {
   const [isTraining, setIsTraining] = useState(false);
   const [trainingData, setTrainingData] = useState(null);
   const [numericalData, setNumericalData] = useState(null);
   const [symbolicData, setSymbolicData] = useState(null);
+  const [modelId, setModelId] = useState(null);
   const [lossData, setLossData] = useState(null);
-  const [progress, setProgress] = useState({ current: 0, total: 5000, completed: false });
+  const [progress, setProgress] = useState(DEFAULT_PROGRESS);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [trainingStats, setTrainingStats] = useState({
-    startTime: null,
-    elapsedTime: 0,
-    epochsPerSecond: 0
-  });
+  const [trainingStats, setTrainingStats] = useState(DEFAULT_TRAINING_STATS);
   const [error, setError] = useState(null);
 
   const sseConnectionRef = useRef(null);
@@ -30,6 +34,30 @@ const useRealTimeTraining = () => {
       clearInterval(statsIntervalRef.current);
       statsIntervalRef.current = null;
     }
+  }, []);
+
+  const resetTrainingSession = useCallback(() => {
+    setProgress(DEFAULT_PROGRESS);
+    setTrainingData(null);
+    setModelId(null);
+    setLossData(null);
+    setTrainingStats({
+      ...DEFAULT_TRAINING_STATS,
+      startTime: Date.now()
+    });
+  }, []);
+
+  const clearTrainingState = useCallback(() => {
+    setIsTraining(false);
+    setTrainingData(null);
+    setNumericalData(null);
+    setSymbolicData(null);
+    setModelId(null);
+    setLossData(null);
+    setProgress(DEFAULT_PROGRESS);
+    setTrainingStats(DEFAULT_TRAINING_STATS);
+    setError(null);
+    setConnectionStatus('disconnected');
   }, []);
 
   const updateStats = useCallback(() => {
@@ -63,19 +91,42 @@ const useRealTimeTraining = () => {
     return error?.message || 'An unexpected error occurred';
   };
 
+  const handleEpochUpdate = useCallback((data) => {
+    const epochTime = Date.now();
+    if (lastEpochTimeRef.current) {
+      const timeDiff = (epochTime - lastEpochTimeRef.current) / 1000;
+      const epochsPerSecond = 1 / timeDiff;
+      setTrainingStats(prev => ({
+        ...prev,
+        epochsPerSecond: epochsPerSecond
+      }));
+    }
+    lastEpochTimeRef.current = epochTime;
+
+    setProgress(prev => ({
+      ...prev,
+      current: data.epoch || 0,
+      total: DEFAULT_PROGRESS.total
+    }));
+
+    if (data.function_data) {
+      setTrainingData({
+        function_data: data.function_data.function_data || data.function_data,
+        metadata: data.function_data.metadata
+      });
+    }
+
+    if (data.loss) {
+      setLossData(data.loss);
+    }
+  }, []);
+
   const startTraining = useCallback(async (payload) => {
     try {
       setError(null);
       setIsTraining(true);
-      setProgress({ current: 0, total: 5000, completed: false });
-      setTrainingData(null);
-      setLossData(null);
+      resetTrainingSession();
       setConnectionStatus('connecting');
-      setTrainingStats({
-        startTime: Date.now(),
-        elapsedTime: 0,
-        epochsPerSecond: 0
-      });
 
       console.log('Starting training with payload:', payload);
 
@@ -106,33 +157,7 @@ const useRealTimeTraining = () => {
               break;
 
             case 'epoch_update': {
-              const epochTime = Date.now();
-              if (lastEpochTimeRef.current) {
-                const timeDiff = (epochTime - lastEpochTimeRef.current) / 1000;
-                const epochsPerSecond = 1 / timeDiff;
-                setTrainingStats(prev => ({
-                  ...prev,
-                  epochsPerSecond: epochsPerSecond
-                }));
-              }
-              lastEpochTimeRef.current = epochTime;
-
-              setProgress(prev => ({
-                ...prev,
-                current: data.epoch || 0,
-                total: 5000
-              }));
-
-              if (data.function_data && data.function_data.function_data) {
-                setTrainingData({
-                  function_data: data.function_data.function_data,
-                  metadata: data.function_data.metadata
-                });
-              }
-
-              if (data.loss) {
-                setLossData(data.loss);
-              }
+              handleEpochUpdate(data);
               break;
             }
 
@@ -141,6 +166,7 @@ const useRealTimeTraining = () => {
               setProgress(prev => ({ ...prev, completed: true }));
               setIsTraining(false);
               setConnectionStatus('disconnected');
+              setModelId(data.model_id || null);
 
               if (data.final_data) {
                 setTrainingData({
@@ -159,6 +185,7 @@ const useRealTimeTraining = () => {
               setError(data.error || 'Training failed');
               setIsTraining(false);
               setConnectionStatus('error');
+              setModelId(null);
               cleanup();
               return;
 
@@ -174,7 +201,6 @@ const useRealTimeTraining = () => {
         }
         throw streamError;
       }
-
     } catch (err) {
       console.error('Training error:', err);
       const errorMessage = formatError(err);
@@ -183,31 +209,20 @@ const useRealTimeTraining = () => {
       setConnectionStatus('error');
       cleanup();
     }
-  }, [cleanup, updateStats, formatError]);
+  }, [cleanup, resetTrainingSession, updateStats, handleEpochUpdate]);
 
   const stopTraining = useCallback(() => {
     cleanup();
     setIsTraining(false);
+    setModelId(null);
     setProgress(prev => ({ ...prev, completed: false }));
     setConnectionStatus('disconnected');
   }, [cleanup]);
 
   const reset = useCallback(() => {
     cleanup();
-    setIsTraining(false);
-    setTrainingData(null);
-    setNumericalData(null);
-    setSymbolicData(null);
-    setLossData(null);
-    setProgress({ current: 0, total: 5000, completed: false });
-    setTrainingStats({
-      startTime: null,
-      elapsedTime: 0,
-      epochsPerSecond: 0
-    });
-    setError(null);
-    setConnectionStatus('disconnected');
-  }, [cleanup]);
+    clearTrainingState();
+  }, [cleanup, clearTrainingState]);
 
   useEffect(() => {
     return cleanup;
@@ -218,6 +233,7 @@ const useRealTimeTraining = () => {
     trainingData,
     numericalData,
     symbolicData,
+    modelId,
     lossData,
     progress,
     connectionStatus,

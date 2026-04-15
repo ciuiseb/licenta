@@ -1,11 +1,13 @@
 import json
 import os
+import logging
 
 import torch
 import torch.nn as nn
 from torch.optim import LBFGS
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = logging.getLogger(__name__)
 
 
 class PINN(nn.Module):
@@ -42,7 +44,7 @@ class PinnService:
             with open(config_path, 'r') as f:
                 self.config = json.load(f)
         except FileNotFoundError:
-            print(f"Warning: Config not found at {config_path}. Using defaults.")
+            logger.warning(f"Config not found at {config_path}. Using defaults.")
             self.config = {
                 "architecture": {"layers": [1, 20, 20, 20, 1], "activation": "tanh"},
                 "training": {"epochs": 5000, "adam_epochs": 4000, "learning_rate": 0.001},
@@ -172,7 +174,7 @@ class PinnService:
 
         self.model.train()
 
-        print(f"Phase 1: Adam optimization for {adam_epochs} epochs")
+        logger.info(f"Phase 1: Adam optimization for {adam_epochs} epochs")
         for epoch in range(adam_epochs):
             self.optimizer.zero_grad()
 
@@ -183,9 +185,6 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            elif problem_type == "ode":
-                #TODO
-                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
 
@@ -193,9 +192,9 @@ class PinnService:
             self.optimizer.step()
 
             if epoch % 500 == 0:
-                print(f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
+                logger.info(f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
 
-        print(f"Phase 2: L-BFGS optimization for {epochs - adam_epochs} epochs")
+        logger.info(f"Phase 2: L-BFGS optimization for {epochs - adam_epochs} epochs")
 
         def closure():
             self.lbfgs_optimizer.zero_grad()
@@ -206,9 +205,6 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            elif problem_type == "ode":
-                #TODO
-                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
             total_loss.backward()
@@ -217,7 +213,7 @@ class PinnService:
         for epoch in range(adam_epochs, epochs):
             loss = self.lbfgs_optimizer.step(closure)
             if epoch % 100 == 0:
-                print(f"L-BFGS Epoch {epoch}: Loss {loss.item():.5f}")
+                logger.info(f"L-BFGS Epoch {epoch}: Loss {loss.item():.5f}")
 
         return self.get_function_data(t_min, t_max)
 
@@ -247,9 +243,6 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            elif problem_type == "ode":
-                #TODO
-                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
             total_loss.backward()
@@ -260,7 +253,7 @@ class PinnService:
                 yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
 
             if epoch % 500 == 0:
-                print(f"Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
+                logger.info(f"Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
 
         return self.get_function_data(t_min, t_max)
 

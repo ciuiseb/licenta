@@ -2,8 +2,10 @@ import logging
 import sympy
 import numpy as np
 from sympy import dsolve, Eq, Symbol, Function
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
-# Initialize logger for this module
+DSOLVE_TIMEOUT = 15
+
 logger = logging.getLogger(__name__)
 
 class SymbolicSolver:
@@ -18,11 +20,11 @@ class SymbolicSolver:
             ics = {}
 
             if conditions:
-                for cond in conditions:
-                    t_val = float(cond['t'])
-                    val = float(cond['val'])
-                    # Using the corrected logic for the derivative order
-                    order = cond.get('order', 0)
+                for index, cond in enumerate(conditions):
+                    t_val = sympy.sympify(str(cond['t']))
+                    val = sympy.sympify(str(cond['val']))
+
+                    order = cond.get('order', index)
 
                     if order == 0:
                         condition_key = y_sym.subs(t_sym, t_val)
@@ -33,7 +35,16 @@ class SymbolicSolver:
                     logger.debug(f"Mapped condition: {condition_key} = {val}")
 
             logger.info(f"Calling dsolve with ics: {ics}")
-            solution = dsolve(Eq(equation_expr, 0), y_sym, ics=ics)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(dsolve, Eq(equation_expr, 0), y_sym, ics=ics)
+                try:
+                    solution = future.result(timeout=DSOLVE_TIMEOUT)
+                except FuturesTimeoutError:
+                    logger.warning(f"dsolve timed out after {DSOLVE_TIMEOUT}s")
+                    return {
+                        "success": False,
+                        "error": f"Symbolic solving timed out after {DSOLVE_TIMEOUT} seconds"
+                    }
 
             if isinstance(solution, list):
                 solution = solution[0]
@@ -54,10 +65,9 @@ class SymbolicSolver:
                     y_vals = y_vals.tolist()
                 logger.debug("Successfully evaluated points using numpy lambdify.")
             except Exception as eval_error:
-                logger.warning(f"Lambdify evaluation failed ({eval_error}). Falling back to sympy subs.")
-                for t_val in t_vals:
-                    y_val = float(solution.rhs.subs(t_sym, t_val))
-                    y_vals.append(y_val)
+                logger.warning(f"Lambdify evaluation failed ({eval_error}). Falling back to sympy evaluation.")
+                solution_func_sympy = sympy.lambdify(t_sym, solution.rhs, 'sympy')
+                y_vals = np.vectorize(lambda t_val: float(solution_func_sympy(t_val)))(t_vals).tolist()
 
             logger.info("Successfully generated numerical data from symbolic solution.")
             return {
@@ -71,9 +81,8 @@ class SymbolicSolver:
             }
 
         except Exception as e:
-            # exc_info=True will print the full stack trace in the logs for debugging
             logger.error(f"Symbolic solver failed: {str(e)}", exc_info=True)
             return {
                 "success": False,
-                "error": f"Nu s-a găsit soluție simbolică exactă: {str(e)}"
+                "error": f"No exact symbolic solution found: {str(e)}"
             }
