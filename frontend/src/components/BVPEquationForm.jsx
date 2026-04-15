@@ -121,6 +121,7 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
             ...prev,
             formula,
             conditions: formattedConditions,
+            equation_type: 'bvp',
             tMax: parseFloat(tMax)
         }));
 

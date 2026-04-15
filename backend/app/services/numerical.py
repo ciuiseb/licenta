@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.integrate import solve_ivp, solve_bvp
 import sympy
+import logging
+
+logger = logging.getLogger(__name__)
 
 class NumericalSolver:
     def solve_numerical(self, equation_expr, conditions, equation_type='ivp', t_range=(0, 10), points=100, var_name='y'):
@@ -20,13 +23,13 @@ class NumericalSolver:
                 highest_order = 1
 
             if len(conditions) != highest_order:
-                raise ValueError(f"Ecuația este de ordin {highest_order}, dar ai oferit {len(conditions)} condiții.")
+                raise ValueError(f"Equation is of order {highest_order}, but {len(conditions)} conditions were provided.")
 
             highest_deriv_term = func_sym.diff(t_sym, highest_order)
             solved = sympy.solve(equation_expr, highest_deriv_term)
 
             if not solved:
-                raise ValueError("Nu am putut izola cea mai mare derivată.")
+                raise ValueError("Could not isolate the highest derivative.")
 
             f_expr = solved[0]
             u_syms = sympy.symbols(f'u0:{highest_order}')
@@ -60,7 +63,7 @@ class NumericalSolver:
                 )
 
                 if not solution.success:
-                    raise ValueError(f"Integrarea a eșuat: {solution.message}")
+                    raise ValueError(f"Integration failed: {solution.message}")
 
                 y_vals = solution.y[0]
 
@@ -79,10 +82,15 @@ class NumericalSolver:
                         target_val = float(cond['val'])
                         t_val = float(cond['t'])
 
-                        if abs(t_val - t_range[0]) <= abs(t_val - t_range[1]):
+                        if np.isclose(t_val, t_range[0], rtol=1e-9):
                             res.append(ya[order] - target_val)
-                        else:
+                        elif np.isclose(t_val, t_range[1], rtol=1e-9):
                             res.append(yb[order] - target_val)
+                        else:
+                            if abs(t_val - t_range[0]) < abs(t_val - t_range[1]):
+                                res.append(ya[order] - target_val)
+                            else:
+                                res.append(yb[order] - target_val)
 
                     return np.array(res)
 
@@ -91,12 +99,12 @@ class NumericalSolver:
                 solution = solve_bvp(ode_system_bvp, bc, t_eval, y_init)
 
                 if not solution.success:
-                    raise ValueError(f"BVP Solver a eșuat: {solution.message}")
+                    raise ValueError(f"BVP solver failed: {solution.message}")
 
                 y_vals = solution.y[0]
 
             else:
-                raise ValueError(f"Tip de ecuație necunoscut: {equation_type}")
+                raise ValueError(f"Unknown equation type: {equation_type}")
 
             return {
                 "success": True,
@@ -107,9 +115,9 @@ class NumericalSolver:
             }
 
         except Exception as e:
-            import traceback
-            print(f"Eroare Numerică Internă:\n{traceback.format_exc()}")
+            logger.error(f"Numerical solver error: {str(e)}")
+            logger.debug(f"Full traceback:\n{traceback.format_exc()}")
             return {
                 "success": False,
-                "error": f"Nu am putut rezolva numeric: {str(e)}"
+                "error": f"Could not solve numerically: {str(e)}"
             }

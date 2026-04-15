@@ -1,18 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+const DEFAULT_PROGRESS = { current: 0, total: 5000, completed: false };
+const DEFAULT_TRAINING_STATS = {
+  startTime: null,
+  elapsedTime: 0,
+  epochsPerSecond: 0
+};
+
 const useFallbackTraining = (baseUrl = '') => {
   const [isTraining, setIsTraining] = useState(false);
   const [trainingData, setTrainingData] = useState(null);
   const [numericalData, setNumericalData] = useState(null);
   const [symbolicData, setSymbolicData] = useState(null);
+  const [modelId, setModelId] = useState(null);
   const [lossData, setLossData] = useState(null);
-  const [progress, setProgress] = useState({ current: 0, total: 5000, completed: false });
+  const [progress, setProgress] = useState(DEFAULT_PROGRESS);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [trainingStats, setTrainingStats] = useState({
-    startTime: null,
-    elapsedTime: 0,
-    epochsPerSecond: 0
-  });
+  const [trainingStats, setTrainingStats] = useState(DEFAULT_TRAINING_STATS);
   const [error, setError] = useState(null);
   
   const abortControllerRef = useRef(null);
@@ -27,6 +31,30 @@ const useFallbackTraining = (baseUrl = '') => {
       clearInterval(statsIntervalRef.current);
       statsIntervalRef.current = null;
     }
+    setConnectionStatus('disconnected');
+  }, []);
+
+  const resetTrainingSession = useCallback(() => {
+    setProgress(DEFAULT_PROGRESS);
+    setTrainingData(null);
+    setModelId(null);
+    setLossData(null);
+    setTrainingStats({
+      ...DEFAULT_TRAINING_STATS,
+      startTime: Date.now()
+    });
+  }, []);
+
+  const clearTrainingState = useCallback(() => {
+    setIsTraining(false);
+    setTrainingData(null);
+    setNumericalData(null);
+    setSymbolicData(null);
+    setModelId(null);
+    setLossData(null);
+    setProgress(DEFAULT_PROGRESS);
+    setTrainingStats(DEFAULT_TRAINING_STATS);
+    setError(null);
     setConnectionStatus('disconnected');
   }, []);
 
@@ -97,15 +125,8 @@ const useFallbackTraining = (baseUrl = '') => {
     try {
       setError(null);
       setIsTraining(true);
-      setProgress({ current: 0, total: 5000, completed: false });
-      setTrainingData(null);
-      setLossData(null);
+      resetTrainingSession();
       setConnectionStatus('connecting');
-      setTrainingStats({
-        startTime: Date.now(),
-        elapsedTime: 0,
-        epochsPerSecond: 0
-      });
 
       console.log('Starting fallback training with payload:', payload);
 
@@ -205,20 +226,8 @@ const useFallbackTraining = (baseUrl = '') => {
 
   const reset = useCallback(() => {
     cleanup();
-    setIsTraining(false);
-    setTrainingData(null);
-    setNumericalData(null);
-    setSymbolicData(null);
-    setLossData(null);
-    setProgress({ current: 0, total: 5000, completed: false });
-    setTrainingStats({
-      startTime: null,
-      elapsedTime: 0,
-      epochsPerSecond: 0
-    });
-    setError(null);
-    setConnectionStatus('disconnected');
-  }, [cleanup]);
+    clearTrainingState();
+  }, [cleanup, clearTrainingState]);
 
   useEffect(() => {
     return cleanup;
@@ -229,6 +238,7 @@ const useFallbackTraining = (baseUrl = '') => {
     trainingData,
     numericalData,
     symbolicData,
+    modelId,
     lossData,
     progress,
     connectionStatus,

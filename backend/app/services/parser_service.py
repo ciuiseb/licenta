@@ -70,6 +70,13 @@ class MathParser:
                 equation_expr = parse_expr(clean_str, local_dict=local_dict, transformations=self.transformations)
 
             order = ode_order(equation_expr, dyn_func)
+            
+            if order > 4:
+                return {
+                    "success": False,
+                    "error": f"Equation order ({order}) exceeds maximum supported order (4)"
+                }
+            
             hints = classify_ode(Eq(equation_expr, 0), dyn_func)
             is_linear = any("linear" in hint for hint in hints)
 

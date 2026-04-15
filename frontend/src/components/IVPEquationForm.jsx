@@ -100,9 +100,15 @@ const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
         }
         setValidationError(null);
 
+        const formattedConditions = conditions.map((c, index) => ({
+            t: parseFloat(initialTime),
+            val: parseFloat(c.val) || 0,
+            order: index
+        }));
+
         const payload = {
             formula: formula,
-            conditions: conditions.map(c => ({ t: parseFloat(initialTime), val: parseFloat(c.val) || 0 })),
+            conditions: formattedConditions,
             equation_type: "ivp",
             tMax: parseFloat(tMax),
             parameters: {
@@ -115,7 +121,8 @@ const IVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
         setParameters(prev => ({
             ...prev,
             formula,
-            conditions: conditions.map(c => ({ t: parseFloat(initialTime), val: parseFloat(c.val) || 0 })),
+            conditions: formattedConditions,
+            equation_type: 'ivp',
             tMax: parseFloat(tMax)
         }));
 

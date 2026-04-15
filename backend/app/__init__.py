@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO
 from flask_cors import CORS
 import logging
 from app.api.route import math_bp
@@ -10,8 +9,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-socketio = SocketIO()
 
 def create_app():
     app = Flask(__name__)
@@ -29,8 +26,6 @@ def create_app():
             "max_age": 3600
         }
     })
-    
-    socketio.init_app(app, cors_allowed_origins="*")
     
     register_error_handlers(app)
 

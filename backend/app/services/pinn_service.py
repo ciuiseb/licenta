@@ -1,11 +1,18 @@
 import json
 import os
+import logging
 
 import torch
 import torch.nn as nn
 from torch.optim import LBFGS
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = logging.getLogger(__name__)
+
+
+def _ensure_finite_loss(loss, phase, epoch):
+    if not torch.isfinite(loss):
+        raise ValueError(f"Non-finite loss encountered during {phase} at epoch {epoch}: {loss.item()}")
 
 
 class PINN(nn.Module):
@@ -42,7 +49,7 @@ class PinnService:
             with open(config_path, 'r') as f:
                 self.config = json.load(f)
         except FileNotFoundError:
-            print(f"Warning: Config not found at {config_path}. Using defaults.")
+            logger.warning(f"Config not found at {config_path}. Using defaults.")
             self.config = {
                 "architecture": {"layers": [1, 20, 20, 20, 1], "activation": "tanh"},
                 "training": {"epochs": 5000, "adam_epochs": 4000, "learning_rate": 0.001},
@@ -155,7 +162,7 @@ class PinnService:
             loss_bvp += torch.mean((current_pred - target_tensor) ** 2)
         return loss_bvp / len(conditions) if conditions else torch.tensor(0.0, device=device)
 
-    def train_model(self, physics_function, conditions, problem_type="ivp", t_max_override=None):
+    def train_model_stream(self, physics_function, conditions, problem_type="ivp", t_max_override=None, callback=None):
         epochs = self.config["training"]["epochs"]
         adam_epochs = self.config["training"].get("adam_epochs", 4000)
         lambda_phys = self.config["loss_weights"]["physics"]
@@ -172,7 +179,7 @@ class PinnService:
 
         self.model.train()
 
-        print(f"Phase 1: Adam optimization for {adam_epochs} epochs")
+        logger.info(f"Phase 1: Adam optimization for {adam_epochs} epochs (streaming)")
         for epoch in range(adam_epochs):
             self.optimizer.zero_grad()
 
@@ -183,84 +190,63 @@ class PinnService:
                 loss_conditions = self.cauchy_loss(conditions)
             elif problem_type == "bvp":
                 loss_conditions = self.bvp_loss(conditions)
-            elif problem_type == "ode":
-                #TODO
-                pass
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
-
+            _ensure_finite_loss(total_loss, "Adam optimization", epoch)
             total_loss.backward()
             self.optimizer.step()
 
-            if epoch % 500 == 0:
-                print(f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
-
-        print(f"Phase 2: L-BFGS optimization for {epochs - adam_epochs} epochs")
-
-        def closure():
-            self.lbfgs_optimizer.zero_grad()
-            t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
-            loss_physics = self.physics_loss(t_physics, physics_function)
-
-            if problem_type == "ivp":
-                loss_conditions = self.cauchy_loss(conditions)
-            elif problem_type == "bvp":
-                loss_conditions = self.bvp_loss(conditions)
-            elif problem_type == "ode":
-                #TODO
-                pass
-
-            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
-            total_loss.backward()
-            return total_loss
-
-        for epoch in range(adam_epochs, epochs):
-            loss = self.lbfgs_optimizer.step(closure)
-            if epoch % 100 == 0:
-                print(f"L-BFGS Epoch {epoch}: Loss {loss.item():.5f}")
-
-        return self.get_function_data(t_min, t_max)
-
-    def train_model_stream(self, physics_function, conditions, problem_type="ivp", t_max_override=None, callback=None):
-        epochs = self.config["training"]["epochs"]
-        lambda_phys = self.config["loss_weights"]["physics"]
-        lambda_bound = self.config["loss_weights"]["boundary"]
-
-        if problem_type == "ivp" and conditions:
-            t_min = float(conditions[0]['t'])
-        elif problem_type == "bvp" and len(conditions) >= 2:
-            t_min = min(float(c['t']) for c in conditions)
-        else:
-            t_min = self.config["domain"]["t_min"]
-        t_max = t_max_override if t_max_override is not None else self.config["domain"]["t_max"]
-        n_points = self.config["domain"]["training_points"]
-
-        self.model.train()
-
-        for epoch in range(epochs):
-            self.optimizer.zero_grad()
-
-            t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
-            loss_physics = self.physics_loss(t_physics, physics_function)
-
-            if problem_type == "ivp":
-                loss_conditions = self.cauchy_loss(conditions)
-            elif problem_type == "bvp":
-                loss_conditions = self.bvp_loss(conditions)
-            elif problem_type == "ode":
-                #TODO
-                pass
-
-            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
-            total_loss.backward()
-            self.optimizer.step()
-
-            if callback and (epoch % 50 == 0 or epoch == epochs - 1):
+            if callback and (epoch % 50 == 0 or epoch == adam_epochs - 1):
                 function_data = self.get_function_data(t_min, t_max, points=50)
                 yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
 
             if epoch % 500 == 0:
-                print(f"Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
+                logger.info(f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
+
+        logger.info(f"Phase 2: L-BFGS optimization for {epochs - adam_epochs} epochs (streaming)")
+
+        current_lbfgs_epoch = adam_epochs
+        lbfgs_t_physics = None
+
+        def closure():
+            self.lbfgs_optimizer.zero_grad()
+            loss_physics = self.physics_loss(lbfgs_t_physics, physics_function)
+
+            if problem_type == "ivp":
+                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "bvp":
+                loss_conditions = self.bvp_loss(conditions)
+
+            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
+            _ensure_finite_loss(total_loss, "L-BFGS optimization", current_lbfgs_epoch)
+            total_loss.backward()
+            return total_loss
+
+        def get_current_losses(t_physics):
+            loss_physics = self.physics_loss(t_physics, physics_function)
+
+            if problem_type == "ivp":
+                loss_conditions = self.cauchy_loss(conditions)
+            elif problem_type == "bvp":
+                loss_conditions = self.bvp_loss(conditions)
+
+            total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
+            _ensure_finite_loss(total_loss, "L-BFGS evaluation", current_lbfgs_epoch)
+            return loss_physics, loss_conditions, total_loss
+
+        for epoch in range(adam_epochs, epochs):
+            current_lbfgs_epoch = epoch
+            lbfgs_t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
+            loss = self.lbfgs_optimizer.step(closure)
+            _ensure_finite_loss(loss, "L-BFGS step", epoch)
+
+            if callback and (epoch % 100 == 0 or epoch == epochs - 1):
+                function_data = self.get_function_data(t_min, t_max, points=50)
+                loss_physics, loss_conditions, total_loss = get_current_losses(lbfgs_t_physics)
+                yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
+
+            if epoch % 100 == 0:
+                logger.info(f"L-BFGS Epoch {epoch}: Loss {loss.item():.5f}")
 
         return self.get_function_data(t_min, t_max)
 

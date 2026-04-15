@@ -12,6 +12,9 @@ def validate_solve_request(data):
     if len(formula.strip()) == 0:
         raise ValidationError("'formula' cannot be empty")
     
+    if len(formula) > 500:
+        raise ValidationError("'formula' is too long (max 500 characters)")
+    
     conditions = data.get('conditions', [])
     if not isinstance(conditions, list):
         raise ValidationError("'conditions' must be a list")
@@ -48,7 +51,7 @@ def validate_solve_request(data):
     parameters = data.get('parameters', {})
     if parameters and not isinstance(parameters, dict):
         raise ValidationError("'parameters' must be an object")
-    
+
     if 'learning_rate' in parameters:
         lr = parameters['learning_rate']
         try:
@@ -59,38 +62,12 @@ def validate_solve_request(data):
             raise ValidationError("'learning_rate' must be a valid number")
 
     equation_type = data.get('equation_type')
-    if equation_type not in ['ode', 'ivp', 'bvp']:
-        raise ValidationError(f"Equation type {equation_type} is not suported")
+    if equation_type not in ['ivp', 'bvp']:
+        raise ValidationError(f"Equation type {equation_type} is not supported")
     return {
         'formula': formula.strip(),
         'conditions': conditions,
         'tMax': t_max,
         'parameters': parameters,
         'equation_type': equation_type
-    }
-
-def validate_export_request(data):
-    """Validate /export request payload"""
-    if not data:
-        raise ValidationError("Request body is required")
-    
-    x_data = data.get('x')
-    y_data = data.get('y')
-    
-    if not x_data or not isinstance(x_data, list):
-        raise ValidationError("'x' is required and must be an array")
-    
-    if not y_data or not isinstance(y_data, list):
-        raise ValidationError("'y' is required and must be an array")
-    
-    if len(x_data) != len(y_data):
-        raise ValidationError("'x' and 'y' arrays must have the same length")
-    
-    if len(x_data) == 0:
-        raise ValidationError("Data arrays cannot be empty")
-    
-    return {
-        'x': x_data,
-        'y': y_data,
-        'meta': data.get('meta', {})
     }
