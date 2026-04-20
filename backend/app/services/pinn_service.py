@@ -156,6 +156,7 @@ class PinnService:
             loss_bvp += torch.mean((current_pred - target_tensor) ** 2)
         return loss_bvp / len(conditions) if conditions else torch.tensor(0.0, device=device)
 
+
     def train_model_stream(self, physics_function, conditions, problem_type="ivp", t_max_override=None, callback=None):
         epochs = self.config["training"]["epochs"]
         adam_epochs = self.config["training"].get("adam_epochs", 4000)
@@ -186,7 +187,7 @@ class PinnService:
                 loss_conditions = self.bvp_loss(conditions)
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
-            _ensure_finite_loss(total_loss, "Adam optimization", epoch)
+            self._ensure_finite_loss(total_loss, "Adam optimization", epoch)
             total_loss.backward()
             self.optimizer.step()
 
@@ -212,7 +213,7 @@ class PinnService:
                 loss_conditions = self.bvp_loss(conditions)
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
-            _ensure_finite_loss(total_loss, "L-BFGS optimization", current_lbfgs_epoch)
+            self._ensure_finite_loss(total_loss, "L-BFGS optimization", current_lbfgs_epoch)
             total_loss.backward()
             return total_loss
 
@@ -225,14 +226,14 @@ class PinnService:
                 loss_conditions = self.bvp_loss(conditions)
 
             total_loss = lambda_phys * loss_physics + lambda_bound * loss_conditions
-            _ensure_finite_loss(total_loss, "L-BFGS evaluation", current_lbfgs_epoch)
+            self._ensure_finite_loss(total_loss, "L-BFGS evaluation", current_lbfgs_epoch)
             return loss_physics, loss_conditions, total_loss
 
         for epoch in range(adam_epochs, epochs):
             current_lbfgs_epoch = epoch
             lbfgs_t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
             loss = self.lbfgs_optimizer.step(closure)
-            _ensure_finite_loss(loss, "L-BFGS step", epoch)
+            self._ensure_finite_loss(loss, "L-BFGS step", epoch)
 
             if callback and (epoch % 100 == 0 or epoch == epochs - 1):
                 function_data = self.get_function_data(t_min, t_max, points=50)
