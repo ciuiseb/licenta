@@ -9,12 +9,6 @@ from torch.optim import LBFGS
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger(__name__)
 
-
-def _ensure_finite_loss(loss, phase, epoch):
-    if not torch.isfinite(loss):
-        raise ValueError(f"Non-finite loss encountered during {phase} at epoch {epoch}: {loss.item()}")
-
-
 class PINN(nn.Module):
     def __init__(self, layers, activation_name):
         super(PINN, self).__init__()
@@ -250,17 +244,6 @@ class PinnService:
 
         return self.get_function_data(t_min, t_max)
 
-    def predict_solution(self, t_min, t_max, points=100):
-        self.model.eval()
-        t_eval = torch.linspace(t_min, t_max, points).view(-1, 1).to(device)
-        with torch.no_grad():
-            y_eval = self.model(t_eval)
-
-        return {
-            "x": t_eval.cpu().numpy().flatten().tolist(),
-            "y": y_eval.cpu().numpy().flatten().tolist()
-        }
-
     def evaluate_at_point(self, t_value):
         """
         Evaluează modelul PINN antrenat la un singur punct t.
@@ -275,7 +258,7 @@ class PinnService:
     def get_function_data(self, t_min, t_max, points=200):
         """
         Generează date complete pentru graficul funcției aproximate de PINN.
-        Returnează x, y, și informații despre convergență.
+        Returnează x, y.
         """
         self.model.eval()
         t_eval = torch.linspace(t_min, t_max, points).view(-1, 1).to(device)
@@ -299,41 +282,6 @@ class PinnService:
                 }
             }
         }
-
-    def get_derivatives_data(self, t_min, t_max, points=200):
-        """
-        Generează date pentru derivatele funcției (y' și y'').
-        Util pentru a vizualiza cum învață PINN derivatele.
-        """
-        self.model.eval()
-        t_eval = torch.linspace(t_min, t_max, points).view(-1, 1).to(device)
-        t_eval.requires_grad_(True)
-        y_eval = self.model(t_eval)
-
-        dy_dt = torch.autograd.grad(
-            y_eval, t_eval,
-            grad_outputs=torch.ones_like(y_eval),
-            create_graph=True,
-            retain_graph=True
-        )[0]
-
-        d2y_dt2 = torch.autograd.grad(
-            dy_dt, t_eval,
-            grad_outputs=torch.ones_like(dy_dt),
-            create_graph=True,
-            retain_graph=True
-        )[0]
-
-        t_numpy = t_eval.detach().cpu().numpy().flatten()
-        y_numpy = y_eval.detach().cpu().numpy().flatten()
-        dy_numpy = dy_dt.detach().cpu().numpy().flatten()
-        d2y_numpy = d2y_dt2.detach().cpu().numpy().flatten()
-
-        return {
-            "derivatives": {
-                "x": t_numpy.tolist(),
-                "y": y_numpy.tolist(),
-                "dy": dy_numpy.tolist(),
-                "d2y": d2y_numpy.tolist()
-            }
-        }
+    def _ensure_finite_loss(loss, phase, epoch):
+        if not torch.isfinite(loss):
+            raise ValueError(f"Non-finite loss encountered during {phase} at epoch {epoch}: {loss.item()}")
