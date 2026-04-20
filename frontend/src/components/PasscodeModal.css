@@ -1,0 +1,156 @@
+.passcode-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.passcode-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.passcode-modal-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.passcode-modal-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.passcode-modal-header p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.passcode-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.passcode-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.passcode-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+.passcode-input:focus {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.passcode-input.error {
+  border-color: #f44336;
+}
+
+.passcode-input.error:focus {
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+}
+
+.passcode-input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.passcode-error {
+  color: #f44336;
+  font-size: 13px;
+  font-weight: 500;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.passcode-submit {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.passcode-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+}
+
+.passcode-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.passcode-submit:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.passcode-footer {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.passcode-footer small {
+  color: #999;
+  font-size: 12px;
+}

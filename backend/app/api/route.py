@@ -4,12 +4,14 @@ import time
 import logging
 import uuid
 import sympy
+import threading
 from app.services.validator import CauchyValidator
 from app.services.numerical import NumericalSolver
 from app.services.symbolic import SymbolicSolver
 from app.services.pinn_service import PinnService
 from app.utils.error_handler import handle_errors, ValidationError, ServerError
 from app.utils.validators import validate_solve_request
+from app.middleware.auth import require_auth, get_session_id
 
 logger = logging.getLogger(__name__)
 PINN_MODEL_TTL_SECONDS = 3600
@@ -22,6 +24,7 @@ numerical = NumericalSolver()
 symbolic = SymbolicSolver()
 
 active_pinn_solvers = {}
+solvers_lock = threading.Lock()
 
 def _prepare_solve_context(data):
     formula, conditions, t_max, equation_type = process_data(data)
@@ -77,6 +80,7 @@ def process_data(data):
 
 
 @math_bp.route('/solve/stream', methods=['POST', 'OPTIONS'])
+@require_auth
 def stream_pinn_training():
     """
     Streaming endpoint for real-time PINN training updates.
@@ -120,7 +124,8 @@ def stream_pinn_training():
                 }
                 yield _sse_data(initial_data)
                 pinn_solver = PinnService(custom_params=custom_params)
-                model_id = _store_pinn_solver(pinn_solver)
+                session_id = get_session_id()
+                model_id = _store_pinn_solver(pinn_solver, session_id)
 
                 def training_callback(epoch, loss_physics, loss_boundary, total_loss, function_data):
                     if time.time() - training_start_time > STREAM_MAX_DURATION_SECONDS:
@@ -203,6 +208,7 @@ def stream_pinn_training():
         )
 
 @math_bp.route('/evaluate', methods=['POST'])
+@require_auth
 @handle_errors
 def evaluate_point():
     """
@@ -218,7 +224,8 @@ def evaluate_point():
     if not model_id or not isinstance(model_id, str):
         raise ValidationError("Missing required parameter: 'model_id'")
 
-    pinn_solver = _get_pinn_solver(model_id)
+    session_id = get_session_id()
+    pinn_solver = _get_pinn_solver(model_id, session_id)
     if pinn_solver is None:
         raise ValidationError("No trained model available for the provided model_id. Please train a model first using /solve/stream")
     
@@ -247,34 +254,44 @@ def _get_t_range_start(conditions, equation_type):
 
 def _cleanup_expired_pinn_solvers():
     current_time = time.time()
-    expired_model_ids = [
-        model_id
-        for model_id, model_entry in active_pinn_solvers.items()
-        if current_time - model_entry["created_at"] > PINN_MODEL_TTL_SECONDS
-    ]
-    for model_id in expired_model_ids:
-        active_pinn_solvers.pop(model_id, None)
+    with solvers_lock:
+        expired_model_ids = [
+            model_id
+            for model_id, model_entry in active_pinn_solvers.items()
+            if current_time - model_entry["created_at"] > PINN_MODEL_TTL_SECONDS
+        ]
+        for model_id in expired_model_ids:
+            active_pinn_solvers.pop(model_id, None)
+            logger.info(f"Cleaned up expired model: {model_id}")
 
 
-def _store_pinn_solver(pinn_solver):
+def _store_pinn_solver(pinn_solver, session_id):
     _cleanup_expired_pinn_solvers()
     model_id = str(uuid.uuid4())
-    active_pinn_solvers[model_id] = {
-        "solver": pinn_solver,
-        "created_at": time.time()
-    }
+    with solvers_lock:
+        active_pinn_solvers[model_id] = {
+            "solver": pinn_solver,
+            "session_id": session_id,
+            "created_at": time.time()
+        }
+    logger.info(f"Stored model {model_id} for session {session_id}")
     return model_id
 
 
-def _get_pinn_solver(model_id):
+def _get_pinn_solver(model_id, session_id):
     _cleanup_expired_pinn_solvers()
-    model_entry = active_pinn_solvers.get(model_id)
-    return model_entry["solver"] if model_entry else None
+    with solvers_lock:
+        model_entry = active_pinn_solvers.get(model_id)
+        if model_entry and model_entry.get("session_id") == session_id:
+            return model_entry["solver"]
+    return None
 
 
 def _remove_pinn_solver(model_id):
     if model_id:
-        active_pinn_solvers.pop(model_id, None)
+        with solvers_lock:
+            active_pinn_solvers.pop(model_id, None)
+        logger.info(f"Removed model: {model_id}")
 
 
 def _json_default(value):
