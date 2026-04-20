@@ -37,7 +37,8 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                 parameters: {
                     learning_rate: parameters.learningRate,
                     hidden_layers: parameters.hiddenLayers,
-                    neurons_per_layer: parameters.neuronsPerLayer
+                    neurons_per_layer: parameters.neuronsPerLayer,
+                    tolerance: Math.pow(10, -(parameters.toleranceExponent ?? 5))
                 }
             });
         }

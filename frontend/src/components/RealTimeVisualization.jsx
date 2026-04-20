@@ -342,12 +342,6 @@ const RealTimeVisualization = ({
 
                 <div className="visualization-content">
                     <div className="progress-section">
-                        <div className="progress-bar">
-                            <div
-                                className="progress-fill"
-                                style={{width: `${(progress.current / progress.total) * 100}%`}}
-                            ></div>
-                        </div>
                         {isTraining && (
                             <div className="graph-building-indicator">
                                 <span className="building-text">Graph building with epoch {progress.current}...</span>
@@ -457,6 +451,25 @@ const RealTimeVisualization = ({
                                 <option value={30}>30 Neurons</option>
                                 <option value={50}>50 Neurons</option>
                             </select>
+                        </div>
+
+                        <div className="param-group">
+                            <label>Target Precision (tolerance)</label>
+                            <input
+                                type="range"
+                                min="2"
+                                max="8"
+                                step="1"
+                                value={parameters?.toleranceExponent ?? 5}
+                                onChange={(e) => onParameterChange('toleranceExponent', parseInt(e.target.value))}
+                                disabled={isTraining}
+                            />
+                            <span>
+                                1e-{parameters?.toleranceExponent ?? 5}
+                                {' '}
+                                ({(parameters?.toleranceExponent ?? 5) <= 3 ? 'fast' :
+                                  (parameters?.toleranceExponent ?? 5) <= 5 ? 'balanced' : 'high precision'})
+                            </span>
                         </div>
                     </div>
 

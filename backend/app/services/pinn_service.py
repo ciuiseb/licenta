@@ -51,6 +51,9 @@ class PinnService:
                 "domain": {"t_min": 0.0, "t_max": 10.0, "training_points": 200}
             }
 
+        self.tolerance = 1e-5
+        self.patience = 500
+
         if custom_params:
             if 'learning_rate' in custom_params:
                 self.config["training"]["learning_rate"] = custom_params['learning_rate']
@@ -59,6 +62,22 @@ class PinnService:
                 num_hidden = custom_params['hidden_layers']
                 neurons = custom_params['neurons_per_layer']
                 self.config["architecture"]["layers"] = [1] + [neurons] * num_hidden + [1]
+
+            if 'tolerance' in custom_params:
+                try:
+                    tol = float(custom_params['tolerance'])
+                    if tol > 0:
+                        self.tolerance = tol
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid tolerance value: {custom_params['tolerance']}, using default")
+
+            if 'patience' in custom_params:
+                try:
+                    pat = int(custom_params['patience'])
+                    if pat > 0:
+                        self.patience = pat
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid patience value: {custom_params['patience']}, using default")
 
         self.model = PINN(
             self.config["architecture"]["layers"],
@@ -174,8 +193,18 @@ class PinnService:
 
         self.model.train()
 
-        logger.info(f"Phase 1: Adam optimization for {adam_epochs} epochs (streaming)")
+        best_loss = float('inf')
+        epochs_no_improve = 0
+        converged = False
+        stop_reason = None
+        last_epoch = 0
+
+        logger.info(
+            f"Phase 1: Adam optimization (max {adam_epochs} epochs, "
+            f"tolerance={self.tolerance:.1e}, patience={self.patience})"
+        )
         for epoch in range(adam_epochs):
+            last_epoch = epoch
             self.optimizer.zero_grad()
 
             t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
@@ -191,14 +220,40 @@ class PinnService:
             total_loss.backward()
             self.optimizer.step()
 
+            current_loss = total_loss.item()
+
+            if current_loss < best_loss - 1e-12:
+                best_loss = current_loss
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+
             if callback and (epoch % 50 == 0 or epoch == adam_epochs - 1):
                 function_data = self.get_function_data(t_min, t_max, points=50)
-                yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
+                yield callback(epoch, loss_physics.item(), loss_conditions.item(), current_loss, function_data)
 
             if epoch % 500 == 0:
-                logger.info(f"Adam Epoch {epoch}: Loss {total_loss.item():.5f} (Phys: {loss_physics.item():.5f}, Bound: {loss_conditions.item():.5f})")
+                logger.info(f"Adam Epoch {epoch}: Loss {current_loss:.6e} (Phys: {loss_physics.item():.6e}, Bound: {loss_conditions.item():.6e})")
 
-        logger.info(f"Phase 2: L-BFGS optimization for {epochs - adam_epochs} epochs (streaming)")
+            if current_loss <= self.tolerance:
+                converged = True
+                stop_reason = f"tolerance {self.tolerance:.1e} reached at Adam epoch {epoch}"
+                logger.info(stop_reason)
+                break
+
+            if epochs_no_improve >= self.patience:
+                stop_reason = f"no improvement for {self.patience} epochs (Adam epoch {epoch}, best loss {best_loss:.6e})"
+                logger.info(f"Early stopping: {stop_reason}")
+                break
+
+        if converged:
+            logger.info(f"Skipping L-BFGS phase - already converged")
+            if callback:
+                function_data = self.get_function_data(t_min, t_max, points=50)
+                yield callback(last_epoch, loss_physics.item(), loss_conditions.item(), best_loss, function_data)
+            return self.get_function_data(t_min, t_max)
+
+        logger.info(f"Phase 2: L-BFGS optimization (max {epochs - adam_epochs} epochs)")
 
         current_lbfgs_epoch = adam_epochs
         lbfgs_t_physics = None
@@ -235,13 +290,29 @@ class PinnService:
             loss = self.lbfgs_optimizer.step(closure)
             self._ensure_finite_loss(loss, "L-BFGS step", epoch)
 
+            current_loss = loss.item()
+
+            if current_loss < best_loss - 1e-12:
+                best_loss = current_loss
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+
             if callback and (epoch % 100 == 0 or epoch == epochs - 1):
                 function_data = self.get_function_data(t_min, t_max, points=50)
                 loss_physics, loss_conditions, total_loss = get_current_losses(lbfgs_t_physics)
                 yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
 
             if epoch % 100 == 0:
-                logger.info(f"L-BFGS Epoch {epoch}: Loss {loss.item():.5f}")
+                logger.info(f"L-BFGS Epoch {epoch}: Loss {current_loss:.6e}")
+
+            if current_loss <= self.tolerance:
+                logger.info(f"Tolerance {self.tolerance:.1e} reached at L-BFGS epoch {epoch}")
+                break
+
+            if epochs_no_improve >= self.patience:
+                logger.info(f"Early stopping at L-BFGS epoch {epoch}: no improvement for {self.patience} epochs (best loss {best_loss:.6e})")
+                break
 
         return self.get_function_data(t_min, t_max)
 
@@ -283,6 +354,6 @@ class PinnService:
                 }
             }
         }
-    def _ensure_finite_loss(loss, phase, epoch):
+    def _ensure_finite_loss(self, loss, phase, epoch):
         if not torch.isfinite(loss):
             raise ValueError(f"Non-finite loss encountered during {phase} at epoch {epoch}: {loss.item()}")

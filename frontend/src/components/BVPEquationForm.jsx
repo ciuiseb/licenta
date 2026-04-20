@@ -20,7 +20,7 @@ const getDerivativeLabel = (index, varName) => {
     return `${varName}^(${index})`;
 };
 
-const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback }) => {
+const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback, setUseFallback, onParameterChange }) => {
     const navigate = useNavigate();
     const [formula, setFormula] = useState("y'' + y = 0");
     const [conditions, setConditions] = useState([
@@ -113,7 +113,8 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
             parameters: {
                 learning_rate: parameters.learningRate,
                 hidden_layers: parameters.hiddenLayers,
-                neurons_per_layer: parameters.neuronsPerLayer
+                neurons_per_layer: parameters.neuronsPerLayer,
+                tolerance: Math.pow(10, -(parameters.toleranceExponent ?? 5))
             }
         };
 
@@ -255,6 +256,31 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
                             onChange={(e) => setTMax(e.target.value)}
                         />
                         <span>]</span>
+                    </div>
+                </div>
+
+                <div className="form-group">
+                    <label>
+                        Target Precision: 1e-{parameters?.toleranceExponent ?? 5}
+                        {' '}
+                        <small style={{color: '#6b7280', fontWeight: 'normal'}}>
+                            ({(parameters?.toleranceExponent ?? 5) <= 3 ? 'fast' :
+                              (parameters?.toleranceExponent ?? 5) <= 5 ? 'balanced' : 'high precision'})
+                        </small>
+                    </label>
+                    <input
+                        type="range"
+                        min="2"
+                        max="8"
+                        step="1"
+                        value={parameters?.toleranceExponent ?? 5}
+                        onChange={(e) => onParameterChange && onParameterChange('toleranceExponent', parseInt(e.target.value))}
+                        disabled={isTraining}
+                        style={{width: '100%'}}
+                    />
+                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#6b7280', marginTop: '4px'}}>
+                        <span>fast (1e-2)</span>
+                        <span>high precision (1e-8)</span>
                     </div>
                 </div>
 

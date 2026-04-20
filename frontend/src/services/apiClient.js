@@ -162,6 +162,7 @@ class APIClient {
           'Content-Type': 'application/json',
           ...options.headers
         },
+        credentials: 'include',
         body: data ? JSON.stringify(data) : undefined,
         ...options
       }, options.timeout);
@@ -202,6 +203,7 @@ class APIClient {
               'Cache-Control': 'no-cache',
               ...options.headers
             },
+            credentials: 'include',
             body: JSON.stringify(data),
             signal: controller.signal
           });
