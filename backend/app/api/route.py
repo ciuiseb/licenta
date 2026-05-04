@@ -10,6 +10,7 @@ from app.services.validator import CauchyValidator
 from app.services.numerical import NumericalSolver
 from app.services.symbolic import SymbolicSolver
 from app.services.pinn_service import PinnService
+from app.services.training_queue import training_queue
 from app.utils.error_handler import handle_errors, ValidationError, ServerError
 from app.utils.validators import validate_solve_request
 from app.middleware.auth import require_auth, get_session_id
@@ -139,7 +140,49 @@ def stream_pinn_training():
         def generate_training_stream():
             training_start_time = time.time()
             model_id = None
+            ticket = training_queue.enqueue()
+            slot_acquired = False
             try:
+                pos, active, capacity, waiting = training_queue.snapshot(ticket)
+                yield _sse_data({
+                    "type": "queue_update",
+                    "position": pos,
+                    "active": active,
+                    "capacity": capacity,
+                    "waiting": waiting,
+                    "timestamp": time.time()
+                })
+
+                last_position = pos
+                while not slot_acquired:
+                    slot_acquired = training_queue.wait_for_slot(ticket, timeout=1.0)
+                    if slot_acquired:
+                        break
+                    if time.time() - training_start_time > STREAM_MAX_DURATION_SECONDS:
+                        raise ServerError("Timed out waiting in training queue")
+                    pos, active, capacity, waiting = training_queue.snapshot(ticket)
+                    if pos != last_position:
+                        last_position = pos
+                        yield _sse_data({
+                            "type": "queue_update",
+                            "position": pos,
+                            "active": active,
+                            "capacity": capacity,
+                            "waiting": waiting,
+                            "timestamp": time.time()
+                        })
+
+
+                training_start_time = time.time()
+                yield _sse_data({
+                    "type": "queue_update",
+                    "position": -1,
+                    "active": training_queue.snapshot(ticket)[1],
+                    "capacity": training_queue.max_concurrent,
+                    "waiting": training_queue.snapshot(ticket)[3],
+                    "timestamp": time.time()
+                })
+
                 sym_res, num_res = _compute_initial_solutions(
                     parsed_data,
                     conditions,
@@ -213,6 +256,11 @@ def stream_pinn_training():
                 }
                 yield _sse_data(error_data)
                 _remove_pinn_solver(model_id)
+            finally:
+                if slot_acquired:
+                    training_queue.release(ticket)
+                else:
+                    training_queue.abandon(ticket)
 
         response = Response(
             stream_with_context(generate_training_stream()),

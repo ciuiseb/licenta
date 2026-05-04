@@ -38,6 +38,7 @@ const RealTimeVisualization = ({
                                    modelId,
                                    progress,
                                    connectionStatus,
+                                   queueInfo,
                                    onToggleTraining,
                                    onParameterChange,
                                    parameters
@@ -281,6 +282,12 @@ const RealTimeVisualization = ({
     const connectionStatusMap = {
         connected: { color: '#10b981', text: 'Connected' },
         connecting: { color: '#f59e0b', text: 'Connecting...' },
+        queued: {
+            color: '#f59e0b',
+            text: queueInfo
+                ? `Queued (position ${queueInfo.position + 1}, ${queueInfo.active}/${queueInfo.capacity} training)`
+                : 'Queued...'
+        },
         error: { color: '#ef4444', text: 'Connection Error' },
         default: { color: '#6b7280', text: 'Disconnected' }
     };
@@ -344,7 +351,15 @@ const RealTimeVisualization = ({
 
                 <div className="visualization-content">
                     <div className="progress-section">
-                        {isTraining && (
+                        {queueInfo && (
+                            <div className="graph-building-indicator">
+                                <span className="building-text">
+                                    Waiting in queue — position {queueInfo.position + 1} of {queueInfo.waiting}
+                                    {` (${queueInfo.active}/${queueInfo.capacity} slots busy)`}
+                                </span>
+                            </div>
+                        )}
+                        {isTraining && !queueInfo && (
                             <div className="graph-building-indicator">
                                 <span className="building-text">Graph building with epoch {progress.current}...</span>
                             </div>
@@ -406,7 +421,7 @@ const RealTimeVisualization = ({
                         <button
                             onClick={onToggleTraining}
                             className={`btn ${isTraining ? 'btn-danger' : 'btn-primary'}`}
-                            disabled={!parameters?.formula || connectionStatus === 'connecting'}
+                            disabled={!parameters?.formula || connectionStatus === 'connecting' || connectionStatus === 'queued'}
                         >
                             {isTraining ? 'Stop Training' : 'Start Training'}
                         </button>

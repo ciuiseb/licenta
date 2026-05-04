@@ -16,6 +16,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
         progress,
         connectionStatus,
         trainingStats,
+        queueInfo,
         startTraining,
         stopTraining,
         reset
@@ -88,6 +89,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                     lossData={lossData}
                     progress={progress}
                     connectionStatus={connectionStatus}
+                    queueInfo={queueInfo}
                     trainingStats={trainingStats}
                     onToggleTraining={handleToggleTraining}
                     onReset={handleReset}

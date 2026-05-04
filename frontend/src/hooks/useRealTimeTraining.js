@@ -21,6 +21,7 @@ const useRealTimeTraining = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [trainingStats, setTrainingStats] = useState(DEFAULT_TRAINING_STATS);
   const [error, setError] = useState(null);
+  const [queueInfo, setQueueInfo] = useState(null);
 
   const sseConnectionRef = useRef(null);
   const statsIntervalRef = useRef(null);
@@ -44,6 +45,7 @@ const useRealTimeTraining = () => {
     setModelId(null);
     setValidationData(null);
     setLossData(null);
+    setQueueInfo(null);
     setTrainingStats({
       ...DEFAULT_TRAINING_STATS,
       startTime: Date.now()
@@ -61,6 +63,7 @@ const useRealTimeTraining = () => {
     setProgress(DEFAULT_PROGRESS);
     setTrainingStats(DEFAULT_TRAINING_STATS);
     setError(null);
+    setQueueInfo(null);
     setConnectionStatus('disconnected');
   }, []);
 
@@ -151,6 +154,23 @@ const useRealTimeTraining = () => {
           console.log('SSE data received:', data);
 
           switch (data.type) {
+            case 'queue_update': {
+              const position = typeof data.position === 'number' ? data.position : -1;
+              if (position >= 0) {
+                setConnectionStatus('queued');
+                setQueueInfo({
+                  position,
+                  active: data.active ?? 0,
+                  capacity: data.capacity ?? 0,
+                  waiting: data.waiting ?? 0
+                });
+              } else {
+                setConnectionStatus('connected');
+                setQueueInfo(null);
+              }
+              break;
+            }
+
             case 'initial_solutions':
               console.log('Received initial solutions:', data);
               if (data.numerical) {
@@ -270,6 +290,7 @@ const useRealTimeTraining = () => {
     connectionStatus,
     trainingStats,
     error,
+    queueInfo,
     startTraining,
     stopTraining,
     reset,
