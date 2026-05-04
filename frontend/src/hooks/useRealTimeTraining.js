@@ -14,6 +14,7 @@ const useRealTimeTraining = () => {
   const [trainingData, setTrainingData] = useState(null);
   const [numericalData, setNumericalData] = useState(null);
   const [symbolicData, setSymbolicData] = useState(null);
+  const [validationData, setValidationData] = useState(null);
   const [modelId, setModelId] = useState(null);
   const [lossData, setLossData] = useState(null);
   const [progress, setProgress] = useState(DEFAULT_PROGRESS);
@@ -24,6 +25,7 @@ const useRealTimeTraining = () => {
   const sseConnectionRef = useRef(null);
   const statsIntervalRef = useRef(null);
   const lastEpochTimeRef = useRef(null);
+  const stopRequestedRef = useRef(false);
 
   const cleanup = useCallback(() => {
     if (sseConnectionRef.current) {
@@ -40,6 +42,7 @@ const useRealTimeTraining = () => {
     setProgress(DEFAULT_PROGRESS);
     setTrainingData(null);
     setModelId(null);
+    setValidationData(null);
     setLossData(null);
     setTrainingStats({
       ...DEFAULT_TRAINING_STATS,
@@ -52,6 +55,7 @@ const useRealTimeTraining = () => {
     setTrainingData(null);
     setNumericalData(null);
     setSymbolicData(null);
+    setValidationData(null);
     setModelId(null);
     setLossData(null);
     setProgress(DEFAULT_PROGRESS);
@@ -124,6 +128,7 @@ const useRealTimeTraining = () => {
   const startTraining = useCallback(async (payload) => {
     try {
       setError(null);
+      stopRequestedRef.current = false;
       setIsTraining(true);
       resetTrainingSession();
       setConnectionStatus('connecting');
@@ -161,6 +166,10 @@ const useRealTimeTraining = () => {
               break;
             }
 
+            case 'model_ready':
+              setModelId(data.model_id || null);
+              break;
+
             case 'training_complete':
               console.log('Training completed:', data);
               setProgress(prev => ({ ...prev, completed: true }));
@@ -174,6 +183,12 @@ const useRealTimeTraining = () => {
                   metadata: data.final_data.metadata
                 });
               }
+
+              if (data.validation) {
+                setValidationData(data.validation);
+              }
+
+              stopRequestedRef.current = false;
 
               cleanup();
               return;
@@ -196,7 +211,9 @@ const useRealTimeTraining = () => {
       } catch (streamError) {
         if (streamError.name === 'AbortError') {
           console.log('Training aborted by user');
-          setConnectionStatus('disconnected');
+          if (!stopRequestedRef.current) {
+            setConnectionStatus('disconnected');
+          }
           return;
         }
         throw streamError;
@@ -211,13 +228,26 @@ const useRealTimeTraining = () => {
     }
   }, [cleanup, resetTrainingSession, updateStats, handleEpochUpdate]);
 
-  const stopTraining = useCallback(() => {
-    cleanup();
-    setIsTraining(false);
-    setModelId(null);
-    setProgress(prev => ({ ...prev, completed: false }));
-    setConnectionStatus('disconnected');
-  }, [cleanup]);
+  const stopTraining = useCallback(async () => {
+    if (!modelId) {
+      cleanup();
+      setIsTraining(false);
+      setConnectionStatus('disconnected');
+      return;
+    }
+
+    try {
+      stopRequestedRef.current = true;
+      setConnectionStatus('disconnecting');
+      await pinnAPI.stopTraining(modelId);
+    } catch (err) {
+      console.error('Failed to request graceful stop:', err);
+      cleanup();
+      setIsTraining(false);
+      setConnectionStatus('disconnected');
+      stopRequestedRef.current = false;
+    }
+  }, [cleanup, modelId]);
 
   const reset = useCallback(() => {
     cleanup();
@@ -233,6 +263,7 @@ const useRealTimeTraining = () => {
     trainingData,
     numericalData,
     symbolicData,
+    validationData,
     modelId,
     lossData,
     progress,

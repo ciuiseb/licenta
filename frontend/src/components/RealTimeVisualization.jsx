@@ -15,6 +15,7 @@ import {InlineMath} from 'react-katex';
 import 'katex/dist/katex.min.css';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import pinnAPI from '../services/pinnAPI';
+import ValidationPanel from './ValidationPanel';
 
 ChartJS.register(
     CategoryScale,
@@ -33,6 +34,7 @@ const RealTimeVisualization = ({
                                    trainingData,
                                    numericalData,
                                    symbolicData,
+                                   validationData,
                                    modelId,
                                    progress,
                                    connectionStatus,
@@ -537,6 +539,13 @@ const RealTimeVisualization = ({
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {progress.completed && validationData && (
+                        <ValidationPanel 
+                            validation={validationData} 
+                            toleranceExponent={parameters?.toleranceExponent}
+                        />
                     )}
                 </div>
             </div>

@@ -4,6 +4,7 @@ import time
 import logging
 import uuid
 import sympy
+import numpy as np
 import threading
 from app.services.validator import CauchyValidator
 from app.services.numerical import NumericalSolver
@@ -68,6 +69,37 @@ def _compute_initial_solutions(parsed_data, conditions, equation_type, t0, t_max
 
     return sym_res, num_res
 
+
+def _build_validation_metrics(pinn_solver, final_result, sym_res, num_res, torch_func, conditions, equation_type, t0, t_max):
+    validation_metrics = {}
+
+    pinn_t = np.array(final_result["function_data"]["x"])
+    pinn_y = np.array(final_result["function_data"]["y"])
+
+    if sym_res.get("success") and sym_res.get("data"):
+        sym_t = np.array(sym_res["data"]["x"])
+        sym_y = np.array(sym_res["data"]["y"])
+
+        sym_y_interp = np.interp(pinn_t, sym_t, sym_y)
+        validation_metrics["symbolic"] = pinn_solver.compute_validation_metrics(
+            pinn_t, pinn_y, sym_y_interp
+        )
+
+    if num_res.get("success") and num_res.get("data"):
+        num_t = np.array(num_res["data"]["x"])
+        num_y = np.array(num_res["data"]["y"])
+
+        num_y_interp = np.interp(pinn_t, num_t, num_y)
+        validation_metrics["numerical"] = pinn_solver.compute_validation_metrics(
+            pinn_t, pinn_y, num_y_interp
+        )
+
+    final_losses = pinn_solver.compute_final_losses(
+        torch_func, conditions, equation_type, t0, t_max
+    )
+    validation_metrics["losses"] = final_losses
+    return validation_metrics
+
 def process_data(data):
     """Extract and process validated request data."""
     validated_data = validate_solve_request(data)
@@ -126,6 +158,11 @@ def stream_pinn_training():
                 pinn_solver = PinnService(custom_params=custom_params)
                 session_id = get_session_id()
                 model_id = _store_pinn_solver(pinn_solver, session_id)
+                yield _sse_data({
+                    "type": "model_ready",
+                    "model_id": model_id,
+                    "timestamp": time.time()
+                })
 
                 def training_callback(epoch, loss_physics, loss_boundary, total_loss, function_data):
                     if time.time() - training_start_time > STREAM_MAX_DURATION_SECONDS:
@@ -153,11 +190,16 @@ def stream_pinn_training():
                     yield update
 
                 final_result = pinn_solver.get_function_data(t0, t_max)
+                validation_metrics = _build_validation_metrics(
+                    pinn_solver, final_result, sym_res, num_res, torch_func, conditions, equation_type, t0, t_max
+                )
+                
                 final_data = {
                     "type": "training_complete",
                     "success": True,
                     "model_id": model_id,
                     "final_data": final_result,
+                    "validation": validation_metrics,
                     "timestamp": time.time()
                 }
                 yield _sse_data(final_data)
@@ -206,6 +248,33 @@ def stream_pinn_training():
             mimetype='text/event-stream',
             status=500
         )
+
+
+@math_bp.route('/stop', methods=['POST'])
+@require_auth
+@handle_errors
+def stop_training():
+    data = request.get_json()
+
+    if not data:
+        raise ValidationError("Request body is required")
+
+    model_id = data.get('model_id')
+    if not model_id or not isinstance(model_id, str):
+        raise ValidationError("Missing required parameter: 'model_id'")
+
+    session_id = get_session_id()
+    pinn_solver = _get_pinn_solver(model_id, session_id)
+    if pinn_solver is None:
+        raise ValidationError("No active trained model available for the provided model_id")
+
+    pinn_solver.request_stop()
+
+    return jsonify({
+        "success": True,
+        "model_id": model_id,
+        "message": "Stop requested"
+    })
 
 @math_bp.route('/evaluate', methods=['POST'])
 @require_auth

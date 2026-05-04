@@ -10,6 +10,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
         trainingData,
         numericalData,
         symbolicData,
+        validationData,
         modelId,
         lossData,
         progress,
@@ -82,6 +83,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                     trainingData={trainingData}
                     numericalData={numericalData}
                     symbolicData={symbolicData}
+                    validationData={validationData}
                     modelId={modelId}
                     lossData={lossData}
                     progress={progress}

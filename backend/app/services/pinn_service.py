@@ -53,6 +53,7 @@ class PinnService:
 
         self.tolerance = 1e-5
         self.patience = 500
+        self.stop_requested = False
 
         if custom_params:
             if 'learning_rate' in custom_params:
@@ -98,6 +99,9 @@ class PinnService:
             tolerance_change=1e-9,
             line_search_fn="strong_wolfe"
         )
+
+    def request_stop(self):
+        self.stop_requested = True
 
     def physics_loss(self, t, physics_function):
         import inspect
@@ -204,6 +208,9 @@ class PinnService:
             f"tolerance={self.tolerance:.1e}, patience={self.patience})"
         )
         for epoch in range(adam_epochs):
+            if self.stop_requested:
+                logger.info(f"Manual stop requested during Adam phase at epoch {epoch}")
+                break
             last_epoch = epoch
             self.optimizer.zero_grad()
 
@@ -259,6 +266,8 @@ class PinnService:
         lbfgs_t_physics = None
 
         def closure():
+            if self.stop_requested:
+                raise StopIteration()
             self.lbfgs_optimizer.zero_grad()
             loss_physics = self.physics_loss(lbfgs_t_physics, physics_function)
 
@@ -285,9 +294,16 @@ class PinnService:
             return loss_physics, loss_conditions, total_loss
 
         for epoch in range(adam_epochs, epochs):
+            if self.stop_requested:
+                logger.info(f"Manual stop requested during L-BFGS phase at epoch {epoch}")
+                break
             current_lbfgs_epoch = epoch
             lbfgs_t_physics = torch.rand((n_points, 1), device=device) * (t_max - t_min) + t_min
-            loss = self.lbfgs_optimizer.step(closure)
+            try:
+                loss = self.lbfgs_optimizer.step(closure)
+            except StopIteration:
+                logger.info(f"Manual stop requested during L-BFGS closure at epoch {epoch}")
+                break
             self._ensure_finite_loss(loss, "L-BFGS step", epoch)
 
             current_loss = loss.item()
@@ -326,6 +342,63 @@ class PinnService:
         with torch.no_grad():
             y_pred = self.model(t_tensor)
         return y_pred.cpu().item()
+
+    def compute_final_losses(self, physics_function, conditions, problem_type, t_min, t_max, n_points=500):
+        """
+        Compute final physics and boundary losses after training.
+        
+        Returns:
+            dict with physics_loss and boundary_loss
+        """
+        self.model.eval()
+        t_physics = torch.linspace(t_min, t_max, n_points).view(-1, 1).to(device)
+        t_physics.requires_grad_(True)
+        
+        loss_physics = self.physics_loss(t_physics, physics_function)
+        
+        if problem_type == "ivp":
+            loss_conditions = self.cauchy_loss(conditions)
+        elif problem_type == "bvp":
+            loss_conditions = self.bvp_loss(conditions)
+        else:
+            loss_conditions = torch.tensor(0.0)
+        
+        return {
+            "physics_residual": float(loss_physics.item()),
+            "boundary_error": float(loss_conditions.item())
+        }
+
+    def compute_validation_metrics(self, t_points, y_pinn, y_reference):
+        """
+        Compute L2 and Linf errors between PINN and reference solution.
+        
+        Args:
+            t_points: numpy array of t values
+            y_pinn: numpy array of PINN predictions
+            y_reference: numpy array of reference solution values
+            
+        Returns:
+            dict with l2_error, l2_relative, linf_error, accuracy_percent
+        """
+        import numpy as np
+        
+        abs_error = np.abs(y_pinn - y_reference)
+        
+        l2_error = np.sqrt(np.mean((y_pinn - y_reference) ** 2))
+        
+        y_ref_norm = np.sqrt(np.mean(y_reference ** 2))
+        l2_relative = l2_error / (y_ref_norm + 1e-10)
+        
+        linf_error = np.max(abs_error)
+        
+        accuracy_percent = max(0.0, min(100.0, (1 - l2_relative) * 100))
+        
+        return {
+            "l2_error": float(l2_error),
+            "l2_relative": float(l2_relative),
+            "linf_error": float(linf_error),
+            "accuracy_percent": float(accuracy_percent)
+        }
 
     def get_function_data(self, t_min, t_max, points=200):
         """
