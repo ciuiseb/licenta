@@ -1,13 +1,14 @@
-import json
-import os
 import logging
+from itertools import count
 
 import torch
 import torch.nn as nn
 from torch.optim import LBFGS
+from app.utils.config_loader import load_pinn_config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger(__name__)
+
 
 class PINN(nn.Module):
     def __init__(self, layers, activation_name):
@@ -36,34 +37,13 @@ class PINN(nn.Module):
 
 class PinnService:
     def __init__(self, config_file="pinn_config.json", custom_params=None):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(base_dir, '..', '..', 'configs', config_file)
-
-        try:
-            with open(config_path, 'r') as f:
-                self.config = json.load(f)
-        except FileNotFoundError:
-            logger.warning(f"Config not found at {config_path}. Using defaults.")
-            self.config = {
-                "architecture": {"layers": [1, 20, 20, 20, 1], "activation": "tanh"},
-                "training": {"epochs": 5000, "adam_epochs": 4000, "learning_rate": 0.001},
-                "loss_weights": {"physics": 1.0, "boundary": 100.0},
-                "domain": {"t_min": 0.0, "t_max": 10.0, "training_points": 200}
-            }
+        self.config = load_pinn_config(config_file)
 
         self.tolerance = 1e-5
         self.patience = 500
         self.stop_requested = False
 
         if custom_params:
-            if 'learning_rate' in custom_params:
-                self.config["training"]["learning_rate"] = custom_params['learning_rate']
-
-            if 'hidden_layers' in custom_params and 'neurons_per_layer' in custom_params:
-                num_hidden = custom_params['hidden_layers']
-                neurons = custom_params['neurons_per_layer']
-                self.config["architecture"]["layers"] = [1] + [neurons] * num_hidden + [1]
-
             if 'tolerance' in custom_params:
                 try:
                     tol = float(custom_params['tolerance'])
@@ -181,8 +161,10 @@ class PinnService:
 
 
     def train_model_stream(self, physics_function, conditions, problem_type="ivp", t_max_override=None, callback=None):
-        epochs = self.config["training"]["epochs"]
         adam_epochs = self.config["training"].get("adam_epochs", 4000)
+        lbfgs_epochs = self.config["training"].get("lbfgs_epochs", 1000)
+        adam_iter = range(adam_epochs) if adam_epochs is not None else count()
+        adam_total_label = adam_epochs if adam_epochs is not None else "unbounded"
         lambda_phys = self.config["loss_weights"]["physics"]
         lambda_bound = self.config["loss_weights"]["boundary"]
 
@@ -204,10 +186,10 @@ class PinnService:
         last_epoch = 0
 
         logger.info(
-            f"Phase 1: Adam optimization (max {adam_epochs} epochs, "
+            f"Phase 1: Adam optimization (max {adam_total_label} epochs, "
             f"tolerance={self.tolerance:.1e}, patience={self.patience})"
         )
-        for epoch in range(adam_epochs):
+        for epoch in adam_iter:
             if self.stop_requested:
                 logger.info(f"Manual stop requested during Adam phase at epoch {epoch}")
                 break
@@ -235,7 +217,8 @@ class PinnService:
             else:
                 epochs_no_improve += 1
 
-            if callback and (epoch % 50 == 0 or epoch == adam_epochs - 1):
+            is_last_adam = adam_epochs is not None and epoch == adam_epochs - 1
+            if callback and (epoch % 50 == 0 or is_last_adam):
                 function_data = self.get_function_data(t_min, t_max, points=50)
                 yield callback(epoch, loss_physics.item(), loss_conditions.item(), current_loss, function_data)
 
@@ -260,9 +243,16 @@ class PinnService:
                 yield callback(last_epoch, loss_physics.item(), loss_conditions.item(), best_loss, function_data)
             return self.get_function_data(t_min, t_max)
 
-        logger.info(f"Phase 2: L-BFGS optimization (max {epochs - adam_epochs} epochs)")
+        lbfgs_start = last_epoch + 1
+        if lbfgs_epochs is not None:
+            lbfgs_iter = range(lbfgs_start, lbfgs_start + lbfgs_epochs)
+            lbfgs_total_label = lbfgs_epochs
+        else:
+            lbfgs_iter = count(lbfgs_start)
+            lbfgs_total_label = "unbounded"
+        logger.info(f"Phase 2: L-BFGS optimization (max {lbfgs_total_label} epochs)")
 
-        current_lbfgs_epoch = adam_epochs
+        current_lbfgs_epoch = lbfgs_start
         lbfgs_t_physics = None
 
         def closure():
@@ -293,7 +283,7 @@ class PinnService:
             self._ensure_finite_loss(total_loss, "L-BFGS evaluation", current_lbfgs_epoch)
             return loss_physics, loss_conditions, total_loss
 
-        for epoch in range(adam_epochs, epochs):
+        for epoch in lbfgs_iter:
             if self.stop_requested:
                 logger.info(f"Manual stop requested during L-BFGS phase at epoch {epoch}")
                 break
@@ -314,7 +304,8 @@ class PinnService:
             else:
                 epochs_no_improve += 1
 
-            if callback and (epoch % 100 == 0 or epoch == epochs - 1):
+            is_last_lbfgs = lbfgs_epochs is not None and epoch == lbfgs_start + lbfgs_epochs - 1
+            if callback and (epoch % 100 == 0 or is_last_lbfgs):
                 function_data = self.get_function_data(t_min, t_max, points=50)
                 loss_physics, loss_conditions, total_loss = get_current_losses(lbfgs_t_physics)
                 yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)

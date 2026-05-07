@@ -14,9 +14,6 @@ function App() {
     const [checkingAuth, setCheckingAuth] = useState(true);
     const [useFallback, setUseFallback] = useState(false);
     const [parameters, setParameters] = useState({
-        learningRate: 0.001,
-        hiddenLayers: 3,
-        neuronsPerLayer: 20,
         toleranceExponent: 5,
         formula: "y'' + y = 0"
     });

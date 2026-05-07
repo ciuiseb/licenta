@@ -429,48 +429,6 @@ const RealTimeVisualization = ({
 
                     <div className="parameter-controls">
                         <div className="param-group">
-                            <label>Learning Rate</label>
-                            <input
-                                type="range"
-                                min="0.0001"
-                                max="0.01"
-                                step="0.0001"
-                                value={parameters?.learningRate || 0.001}
-                                onChange={(e) => onParameterChange('learningRate', parseFloat(e.target.value))}
-                                disabled={isTraining}
-                            />
-                            <span>{parameters?.learningRate || 0.001}</span>
-                        </div>
-
-                        <div className="param-group">
-                            <label>Hidden Layers</label>
-                            <select
-                                value={parameters?.hiddenLayers || 3}
-                                onChange={(e) => onParameterChange('hiddenLayers', parseInt(e.target.value))}
-                                disabled={isTraining}
-                            >
-                                <option value={2}>2 Layers</option>
-                                <option value={3}>3 Layers</option>
-                                <option value={4}>4 Layers</option>
-                                <option value={5}>5 Layers</option>
-                            </select>
-                        </div>
-
-                        <div className="param-group">
-                            <label>Neurons per Layer</label>
-                            <select
-                                value={parameters?.neuronsPerLayer || 20}
-                                onChange={(e) => onParameterChange('neuronsPerLayer', parseInt(e.target.value))}
-                                disabled={isTraining}
-                            >
-                                <option value={10}>10 Neurons</option>
-                                <option value={20}>20 Neurons</option>
-                                <option value={30}>30 Neurons</option>
-                                <option value={50}>50 Neurons</option>
-                            </select>
-                        </div>
-
-                        <div className="param-group">
                             <label>Target Precision (tolerance)</label>
                             <input
                                 type="range"

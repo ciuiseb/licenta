@@ -52,15 +52,6 @@ def validate_solve_request(data):
     if parameters and not isinstance(parameters, dict):
         raise ValidationError("'parameters' must be an object")
 
-    if 'learning_rate' in parameters:
-        lr = parameters['learning_rate']
-        try:
-            lr = float(lr)
-            if lr <= 0 or lr > 1:
-                raise ValidationError("'learning_rate' must be between 0 and 1")
-        except (ValueError, TypeError):
-            raise ValidationError("'learning_rate' must be a valid number")
-
     equation_type = data.get('equation_type')
     if equation_type not in ['ivp', 'bvp']:
         raise ValidationError(f"Equation type {equation_type} is not supported")

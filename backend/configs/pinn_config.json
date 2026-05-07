@@ -4,9 +4,9 @@
     "activation": "tanh"
   },
   "training": {
-    "epochs": 25000,
-    "learning_rate": 0.001,
-    "optimizer": "Adam"
+    "adam_epochs": 4000,
+    "lbfgs_epochs": null,
+    "learning_rate": 0.001
   },
   "loss_weights": {
     "physics": 1.0,

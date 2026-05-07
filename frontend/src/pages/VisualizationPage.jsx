@@ -37,9 +37,6 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                 equation_type: parameters.equation_type || 'ivp',
                 tMax: parameters.tMax || 10,
                 parameters: {
-                    learning_rate: parameters.learningRate,
-                    hidden_layers: parameters.hiddenLayers,
-                    neurons_per_layer: parameters.neuronsPerLayer,
                     tolerance: Math.pow(10, -(parameters.toleranceExponent ?? 5))
                 }
             });
