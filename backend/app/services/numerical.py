@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import solve_ivp, solve_bvp
 import sympy
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 

@@ -234,6 +234,9 @@ class PinnService:
             if epochs_no_improve >= self.patience:
                 stop_reason = f"no improvement for {self.patience} epochs (Adam epoch {epoch}, best loss {best_loss:.6e})"
                 logger.info(f"Early stopping: {stop_reason}")
+                if callback:
+                    function_data = self.get_function_data(t_min, t_max, points=50)
+                    yield callback(epoch, loss_physics.item(), loss_conditions.item(), current_loss, function_data)
                 break
 
         if converged:
@@ -251,6 +254,10 @@ class PinnService:
             lbfgs_iter = count(lbfgs_start)
             lbfgs_total_label = "unbounded"
         logger.info(f"Phase 2: L-BFGS optimization (max {lbfgs_total_label} epochs)")
+
+        # Reset patience counter so L-BFGS gets its own full chance to improve,
+        # independent of how Adam ended (otherwise an Adam early-stop would kill L-BFGS immediately).
+        epochs_no_improve = 0
 
         current_lbfgs_epoch = lbfgs_start
         lbfgs_t_physics = None
@@ -315,10 +322,18 @@ class PinnService:
 
             if current_loss <= self.tolerance:
                 logger.info(f"Tolerance {self.tolerance:.1e} reached at L-BFGS epoch {epoch}")
+                if callback:
+                    function_data = self.get_function_data(t_min, t_max, points=50)
+                    loss_physics, loss_conditions, total_loss = get_current_losses(lbfgs_t_physics)
+                    yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
                 break
 
             if epochs_no_improve >= self.patience:
                 logger.info(f"Early stopping at L-BFGS epoch {epoch}: no improvement for {self.patience} epochs (best loss {best_loss:.6e})")
+                if callback:
+                    function_data = self.get_function_data(t_min, t_max, points=50)
+                    loss_physics, loss_conditions, total_loss = get_current_losses(lbfgs_t_physics)
+                    yield callback(epoch, loss_physics.item(), loss_conditions.item(), total_loss.item(), function_data)
                 break
 
         return self.get_function_data(t_min, t_max)

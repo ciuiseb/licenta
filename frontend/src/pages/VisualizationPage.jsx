@@ -49,7 +49,7 @@ const VisualizationPage = ({ trainingHook, parameters, onParameterChange }) => {
                 <button onClick={handleReset} className="btn btn-secondary btn-back">
                     ← Back to Configuration
                 </button>
-                <h2>Real-Time PINN Training</h2>
+                <h2>PINN Training</h2>
                 <div className="visualization-page-formula">
                     {parameters.formula || "—"}
                     {parameters.conditions && parameters.conditions.length > 0 && (

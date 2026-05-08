@@ -342,8 +342,6 @@ const RealTimeVisualization = ({
                         )}
                         {progress.completed && (
                             <span className="status-indicator status-converged">
-                <span className="status-dot"></span>
-                AI Converged ✓
               </span>
                         )}
                     </div>
