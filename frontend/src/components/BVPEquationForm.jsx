@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import InfoTooltip from './InfoTooltip';
 
 const getEquationInfo = (formula) => {
     const match = formula.match(/\b([a-zA-Z])'+/);
@@ -264,6 +265,17 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
                             ({(parameters?.toleranceExponent ?? 5) <= 3 ? 'fast' :
                               (parameters?.toleranceExponent ?? 5) <= 5 ? 'balanced' : 'high precision'})
                         </small>
+                        <InfoTooltip
+                            title="Target Precision (Tolerance)"
+                            content={
+                                <>
+                                    Sets the target residual error the PINN will try to reach during training.
+                                    A lower value (e.g. 1e-8) means stricter accuracy but slower training,
+                                    while a higher value (e.g. 1e-2) trains faster with a coarser solution.
+                                    Internally this is passed as <code>tolerance = 10<sup>-exponent</sup></code>.
+                                </>
+                            }
+                        />
                     </label>
                     <input
                         type="range"

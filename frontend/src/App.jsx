@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {Route, Routes} from 'react-router-dom';
 import VisualizationPage from './pages/VisualizationPage';
+import SymbolicResultPage from './pages/SymbolicResultPage';
 import useRealTimeTraining from './hooks/useRealTimeTraining';
 import useFallbackTraining from './hooks/useFallbackTraining';
 import PasscodeModal from './components/PasscodeModal';
@@ -86,6 +87,9 @@ function App() {
                             parameters={parameters}
                             onParameterChange={handleParameterChange}
                         />
+                    }/>
+                    <Route path="/symbolic" element={
+                        <SymbolicResultPage />
                     }/>
                 </Routes>
             </main>

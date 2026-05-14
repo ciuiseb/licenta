@@ -3,6 +3,7 @@ import sympy
 import numpy as np
 import multiprocessing as mp
 from sympy import dsolve, Eq, Symbol, Function
+from dsolve_worker import run_dsolve
 
 DSOLVE_TIMEOUT = 15
 IC_RESIDUAL_TOLERANCE = 1e-8  # branches with combined IC residual below this are considered to satisfy ICs
@@ -10,13 +11,6 @@ IC_RESIDUAL_TOLERANCE = 1e-8  # branches with combined IC residual below this ar
 logger = logging.getLogger(__name__)
 
 
-def _dsolve_worker(equation_expr, y_sym, ics, queue):
-    """Run dsolve in a child process and put the result (or error) on the queue."""
-    try:
-        solution = dsolve(Eq(equation_expr, 0), y_sym, ics=ics)
-        queue.put(("ok", solution))
-    except Exception as e:
-        queue.put(("error", str(e)))
 
 
 def _ic_residual(branch, conditions, t_sym, var_name='y'):
@@ -68,7 +62,7 @@ class SymbolicSolver:
             logger.info(f"Calling dsolve with ics: {ics}")
             ctx = mp.get_context("spawn")
             queue = ctx.Queue()
-            proc = ctx.Process(target=_dsolve_worker, args=(equation_expr, y_sym, ics, queue))
+            proc = ctx.Process(target=run_dsolve, args=(equation_expr, y_sym, ics, queue))
             proc.start()
             proc.join(timeout=DSOLVE_TIMEOUT)
 
@@ -172,4 +166,81 @@ class SymbolicSolver:
             return {
                 "success": False,
                 "error": f"No exact symbolic solution found: {str(e)}"
+            }
+
+    def solve_general(self, equation_expr, var_name='y'):
+        """Solve an ODE symbolically without initial conditions.
+
+        Returns the general solution(s) containing arbitrary constants (C1, C2, ...).
+        Does not produce numerical plot data.
+        """
+        logger.info(f"Starting general (IC-free) symbolic solution for: {equation_expr}")
+
+        try:
+            t_sym = sympy.Symbol('t')
+            y_sym = sympy.Function(var_name)(t_sym)
+
+            ctx = mp.get_context("spawn")
+            queue = ctx.Queue()
+            proc = ctx.Process(target=run_dsolve, args=(equation_expr, y_sym, {}, queue))
+            proc.start()
+            proc.join(timeout=DSOLVE_TIMEOUT)
+
+            if proc.is_alive():
+                logger.warning(f"dsolve timed out after {DSOLVE_TIMEOUT}s, terminating worker process")
+                proc.terminate()
+                proc.join(timeout=2)
+                if proc.is_alive():
+                    proc.kill()
+                    proc.join()
+                return {
+                    "success": False,
+                    "error": f"Symbolic solving timed out after {DSOLVE_TIMEOUT} seconds"
+                }
+
+            try:
+                status, payload = queue.get_nowait()
+            except Exception:
+                return {
+                    "success": False,
+                    "error": "Symbolic worker exited without producing a result"
+                }
+
+            if status == "error":
+                return {
+                    "success": False,
+                    "error": f"dsolve raised: {payload}"
+                }
+
+            solution = payload
+            branches = solution if isinstance(solution, list) else [solution]
+
+            all_constants = set()
+            solutions_out = []
+            for branch in branches:
+                rhs = branch.rhs
+                free = rhs.free_symbols - {t_sym}
+                const_names = sorted(s.name for s in free)
+                all_constants.update(const_names)
+                solutions_out.append({
+                    "formula_str": str(rhs),
+                    "latex": sympy.latex(branch)
+                })
+
+            order = sympy.ode_order(equation_expr, y_sym)
+            logger.info(f"General symbolic solution found ({len(solutions_out)} branch(es))")
+
+            return {
+                "success": True,
+                "solutions": solutions_out,
+                "constants": sorted(all_constants),
+                "order": int(order),
+                "variable": var_name
+            }
+
+        except Exception as e:
+            logger.error(f"General symbolic solver failed: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"No general symbolic solution found: {str(e)}"
             }

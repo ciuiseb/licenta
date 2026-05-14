@@ -10,9 +10,10 @@ from app.services.validator import CauchyValidator
 from app.services.numerical import NumericalSolver
 from app.services.symbolic import SymbolicSolver
 from app.services.pinn_service import PinnService
+from app.services.parser_service import MathParser
 from app.services.training_queue import training_queue
 from app.utils.error_handler import handle_errors, ValidationError, ServerError
-from app.utils.validators import validate_solve_request
+from app.utils.validators import validate_solve_request, validate_symbolic_request
 from app.middleware.auth import require_auth, get_session_id
 
 logger = logging.getLogger(__name__)
@@ -362,6 +363,29 @@ def evaluate_point():
         "t": t_value,
         "y": y_value
     })
+
+@math_bp.route('/solve/symbolic', methods=['POST', 'OPTIONS'])
+@require_auth
+@handle_errors
+def solve_symbolic():
+    """Return the general symbolic solution of an ODE (no initial conditions)."""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    data = request.get_json()
+    validated = validate_symbolic_request(data)
+    formula = validated['formula']
+
+    parsed = MathParser().parse(formula)
+    if not parsed['success']:
+        raise ValidationError(parsed.get('error') or 'Failed to parse equation')
+
+    var_name = parsed['meta'].get('variable', 'y')
+    result = symbolic.solve_general(parsed['sympy_object'], var_name=var_name)
+
+    status = 200 if result.get('success') else 400
+    return jsonify(result), status
+
 
 def _get_t_range_start(conditions, equation_type):
     if equation_type == 'bvp' and conditions:

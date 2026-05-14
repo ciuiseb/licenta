@@ -62,3 +62,23 @@ def validate_solve_request(data):
         'parameters': parameters,
         'equation_type': equation_type
     }
+
+
+def validate_symbolic_request(data):
+    """Validate /solve/symbolic request payload (formula only, no conditions)."""
+    if not data:
+        raise ValidationError("Request body is required")
+
+    formula = data.get('formula')
+    if not formula or not isinstance(formula, str):
+        raise ValidationError("'formula' is required and must be a string")
+
+    if len(formula.strip()) == 0:
+        raise ValidationError("'formula' cannot be empty")
+
+    if len(formula) > 500:
+        raise ValidationError("'formula' is too long (max 500 characters)")
+
+    return {
+        'formula': formula.strip()
+    }

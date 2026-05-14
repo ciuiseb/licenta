@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import IVPEquationForm from './IVPEquationForm';
 import BVPEquationForm from "./BVPEquationForm.jsx";
+import ODEEquationForm from './ODEEquationForm';
 
 const SetupPage = (props) => {
     const [activeTab, setActiveTab] = useState('ivp');
@@ -22,13 +23,22 @@ const SetupPage = (props) => {
                 >
                     Boundary Value Problem
                 </button>
+                <button
+                    className={`btn ${activeTab === 'ode' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveTab('ode')}
+                    style={{ minWidth: '150px' }}
+                >
+                    Ordinary Differential Equation
+                </button>
             </div>
 
             <div className="active-form-container">
                 {activeTab === 'ivp' ? (
                     <IVPEquationForm {...props} />
-                ) : (
+                ) : activeTab === 'bvp' ? (
                     <BVPEquationForm {...props} />
+                ) : (
+                    <ODEEquationForm />
                 )}
             </div>
         </div>

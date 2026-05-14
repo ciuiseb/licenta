@@ -255,8 +255,6 @@ class PinnService:
             lbfgs_total_label = "unbounded"
         logger.info(f"Phase 2: L-BFGS optimization (max {lbfgs_total_label} epochs)")
 
-        # Reset patience counter so L-BFGS gets its own full chance to improve,
-        # independent of how Adam ended (otherwise an Adam early-stop would kill L-BFGS immediately).
         epochs_no_improve = 0
 
         current_lbfgs_epoch = lbfgs_start
