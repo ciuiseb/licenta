@@ -190,9 +190,9 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
                                     value={cond.order}
                                     onChange={(e) => handleConditionChange(index, 'order', e.target.value)}
                                     style={{
-                                        backgroundColor: '#ffffff',
-                                        color: '#333333',
-                                        border: '1px solid #d1d5db',
+                                        backgroundColor: 'var(--input-bg)',
+                                        color: 'var(--input-text)',
+                                        border: '1px solid var(--input-border)',
                                         borderRadius: '8px',
                                         padding: '3px 5px',
                                         cursor: 'pointer',
@@ -261,7 +261,7 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
                     <label>
                         Target Precision: 1e-{parameters?.toleranceExponent ?? 5}
                         {' '}
-                        <small style={{color: '#6b7280', fontWeight: 'normal'}}>
+                        <small style={{color: 'var(--text-on-surface-secondary)', fontWeight: 'normal'}}>
                             ({(parameters?.toleranceExponent ?? 5) <= 3 ? 'fast' :
                               (parameters?.toleranceExponent ?? 5) <= 5 ? 'balanced' : 'high precision'})
                         </small>
@@ -287,7 +287,7 @@ const BVPEquationForm = ({ trainingHook, parameters, setParameters, useFallback,
                         disabled={isTraining}
                         style={{width: '100%'}}
                     />
-                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#6b7280', marginTop: '4px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-on-surface-secondary)', marginTop: '4px'}}>
                         <span>fast (1e-2)</span>
                         <span>high precision (1e-8)</span>
                     </div>

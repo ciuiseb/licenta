@@ -22,8 +22,8 @@ const InfoTooltip = ({ content, title }) => {
                     width: '18px',
                     height: '18px',
                     borderRadius: '50%',
-                    backgroundColor: '#e5e7eb',
-                    color: '#374151',
+                    backgroundColor: 'var(--border-color)',
+                    color: 'var(--text-main)',
                     fontSize: '12px',
                     fontWeight: 'bold',
                     cursor: 'help',
@@ -44,8 +44,8 @@ const InfoTooltip = ({ content, title }) => {
                         zIndex: 1000,
                         width: '280px',
                         maxWidth: '90vw',
-                        backgroundColor: '#1f2937',
-                        color: '#f9fafb',
+                        backgroundColor: 'var(--tooltip-bg)',
+                        color: 'var(--tooltip-text)',
                         padding: '10px 12px',
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
@@ -58,7 +58,7 @@ const InfoTooltip = ({ content, title }) => {
                     }}
                 >
                     {title && (
-                        <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#fff' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--tooltip-text)' }}>
                             {title}
                         </div>
                     )}
@@ -73,7 +73,7 @@ const InfoTooltip = ({ content, title }) => {
                             height: 0,
                             borderLeft: '6px solid transparent',
                             borderRight: '6px solid transparent',
-                            borderTop: '6px solid #1f2937',
+                            borderTop: '6px solid var(--tooltip-bg)',
                         }}
                     />
                 </span>

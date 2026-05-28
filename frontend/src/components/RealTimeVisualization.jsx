@@ -16,6 +16,7 @@ import 'katex/dist/katex.min.css';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import pinnAPI from '../services/pinnAPI';
 import ValidationPanel from './ValidationPanel';
+import {useTheme} from '../context/ThemeContext';
 
 ChartJS.register(
     CategoryScale,
@@ -46,6 +47,10 @@ const RealTimeVisualization = ({
     const chartRef = useRef(null);
     const [currentEpoch, setCurrentEpoch] = useState(0);
     const updateTimeoutRef = useRef(null);
+    const {theme} = useTheme();
+
+    const cssVar = (name) =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
     const [yBounds, setYBounds] = useState({min: -1, max: 1});
 
@@ -186,14 +191,14 @@ const RealTimeVisualization = ({
                     title: {
                         display: true,
                         text: 'Time (t)',
-                        color: '#e5e7eb'
+                        color: cssVar('--chart-title-color')
                     },
                     grid: {
-                        color: '#374151',
-                        borderColor: '#4b5563'
+                        color: cssVar('--chart-grid-color'),
+                        borderColor: cssVar('--chart-grid-border')
                     },
                     ticks: {
-                        color: '#9ca3af'
+                        color: cssVar('--chart-tick-color')
                     }
                 },
                 y: {
@@ -202,14 +207,14 @@ const RealTimeVisualization = ({
                     title: {
                         display: true,
                         text: 'Solution y(t)',
-                        color: '#e5e7eb'
+                        color: cssVar('--chart-title-color')
                     },
                     grid: {
-                        color: '#374151',
-                        borderColor: '#4b5563'
+                        color: cssVar('--chart-grid-color'),
+                        borderColor: cssVar('--chart-grid-border')
                     },
                     ticks: {
-                        color: '#9ca3af'
+                        color: cssVar('--chart-tick-color')
                     }
                 }
             },
@@ -218,7 +223,7 @@ const RealTimeVisualization = ({
                     display: true,
                     position: 'top',
                     labels: {
-                        color: '#e5e7eb',
+                        color: cssVar('--chart-legend-color'),
                         font: {
                             size: 12
                         },
@@ -235,10 +240,10 @@ const RealTimeVisualization = ({
                     }
                 },
                 tooltip: {
-                    backgroundColor: '#1f2937',
-                    titleColor: '#e5e7eb',
-                    bodyColor: '#9ca3af',
-                    borderColor: '#4b5563',
+                    backgroundColor: cssVar('--chart-tooltip-bg'),
+                    titleColor: cssVar('--chart-tooltip-title'),
+                    bodyColor: cssVar('--chart-tooltip-body'),
+                    borderColor: cssVar('--chart-tooltip-border'),
                     borderWidth: 1,
                     mode: 'index',
                     intersect: false,
@@ -277,19 +282,19 @@ const RealTimeVisualization = ({
                 }
             }
         };
-    }, [isTraining, progress.current, progress.total, parameters, yBounds]);
+    }, [isTraining, progress.current, progress.total, parameters, yBounds, theme]);
 
     const connectionStatusMap = {
-        connected: { color: '#10b981', text: 'Connected' },
-        connecting: { color: '#f59e0b', text: 'Connecting...' },
+        connected: { color: cssVar('--status-converged'), text: 'Connected' },
+        connecting: { color: cssVar('--status-training'), text: 'Connecting...' },
         queued: {
-            color: '#f59e0b',
+            color: cssVar('--status-training'),
             text: queueInfo
                 ? `Queued (position ${queueInfo.position + 1}, ${queueInfo.active}/${queueInfo.capacity} training)`
                 : 'Queued...'
         },
-        error: { color: '#ef4444', text: 'Connection Error' },
-        default: { color: '#6b7280', text: 'Disconnected' }
+        error: { color: cssVar('--danger'), text: 'Connection Error' },
+        default: { color: cssVar('--status-idle'), text: 'Disconnected' }
     };
 
     const getConnectionStatus = () => connectionStatusMap[connectionStatus] || connectionStatusMap.default;
@@ -449,7 +454,7 @@ const RealTimeVisualization = ({
                     {progress.completed && (
                         <div className="point-evaluation">
                             <h3>Evaluate at Point</h3>
-                            <p style={{color: '#9ca3af', fontSize: '0.9rem', marginBottom: '15px'}}>
+                            <p style={{color: 'var(--text-on-surface-secondary)', fontSize: '0.9rem', marginBottom: '15px'}}>
                                 Enter a value of t to instantly evaluate y(t) using the trained model.
                             </p>
                             <div className="eval-input-group">

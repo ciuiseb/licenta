@@ -6,7 +6,8 @@ from sympy import dsolve, Eq, Symbol, Function
 from dsolve_worker import run_dsolve
 
 DSOLVE_TIMEOUT = 15
-IC_RESIDUAL_TOLERANCE = 1e-8  # branches with combined IC residual below this are considered to satisfy ICs
+DSOLVE_GENERAL_TIMEOUT = 45
+IC_RESIDUAL_TOLERANCE = 1e-8
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class SymbolicSolver:
                 }
 
             try:
-                status, payload = queue.get_nowait()
+                status, payload = queue.get(timeout=5)
             except Exception:
                 return {
                     "success": False,
@@ -184,10 +185,10 @@ class SymbolicSolver:
             queue = ctx.Queue()
             proc = ctx.Process(target=run_dsolve, args=(equation_expr, y_sym, {}, queue))
             proc.start()
-            proc.join(timeout=DSOLVE_TIMEOUT)
+            proc.join(timeout=DSOLVE_GENERAL_TIMEOUT)
 
             if proc.is_alive():
-                logger.warning(f"dsolve timed out after {DSOLVE_TIMEOUT}s, terminating worker process")
+                logger.warning(f"dsolve timed out after {DSOLVE_GENERAL_TIMEOUT}s, terminating worker process")
                 proc.terminate()
                 proc.join(timeout=2)
                 if proc.is_alive():
@@ -195,11 +196,11 @@ class SymbolicSolver:
                     proc.join()
                 return {
                     "success": False,
-                    "error": f"Symbolic solving timed out after {DSOLVE_TIMEOUT} seconds"
+                    "error": f"Symbolic solving timed out after {DSOLVE_GENERAL_TIMEOUT} seconds"
                 }
 
             try:
-                status, payload = queue.get_nowait()
+                status, payload = queue.get(timeout=5)
             except Exception:
                 return {
                     "success": False,

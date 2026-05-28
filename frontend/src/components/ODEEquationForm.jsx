@@ -96,7 +96,7 @@ const ODEEquationForm = () => {
                             <h3 style={{ margin: 0 }}>
                                 General Solution{result.solutions.length > 1 ? 's' : ''}
                             </h3>
-                            <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-on-surface-secondary)' }}>
                                 Order {result.order}
                                 {result.constants && result.constants.length > 0 && (
                                     <> &middot; Constants: {result.constants.join(', ')}</>
@@ -109,8 +109,8 @@ const ODEEquationForm = () => {
                                 key={idx}
                                 style={{
                                     padding: '12px 16px',
-                                    backgroundColor: '#f9fafb',
-                                    border: '1px solid #e5e7eb',
+                                    backgroundColor: 'var(--surface-2)',
+                                    border: '1px solid var(--border-color)',
                                     borderRadius: '8px',
                                     marginBottom: '10px',
                                     overflowX: 'auto'
@@ -119,7 +119,7 @@ const ODEEquationForm = () => {
                                 {result.solutions.length > 1 && (
                                     <div style={{
                                         fontSize: '0.8rem',
-                                        color: '#6b7280',
+                                        color: 'var(--text-on-surface-secondary)',
                                         marginBottom: '6px'
                                     }}>
                                         Branch {idx + 1}
@@ -128,7 +128,7 @@ const ODEEquationForm = () => {
                                 <BlockMath math={sol.latex} />
                                 <div style={{
                                     fontSize: '0.8rem',
-                                    color: '#6b7280',
+                                    color: 'var(--text-on-surface-secondary)',
                                     marginTop: '8px',
                                     fontFamily: 'monospace',
                                     wordBreak: 'break-all'
