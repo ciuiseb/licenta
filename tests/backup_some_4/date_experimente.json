@@ -1,0 +1,53 @@
+{
+    "BVP_2_Pendul": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 148.0,
+            "acuratete_medie": 70.58109654663488,
+            "acuratete_std": 0.5720834973822633,
+            "eroare_l2_medie": 0.29418903453365114
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 220.1,
+            "acuratete_medie": 70.34361232120293,
+            "acuratete_std": 0.23669377387742255,
+            "eroare_l2_medie": 0.2965638767879709
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 392.8,
+            "acuratete_medie": 70.26355541124576,
+            "acuratete_std": 0.12420912263641877,
+            "eroare_l2_medie": 0.29736444588754246
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 2657.222222222222,
+            "acuratete_medie": 70.27449853269599,
+            "acuratete_std": 0.021384872423679605,
+            "eroare_l2_medie": 0.29725501467304016
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 4017.4444444444443,
+            "acuratete_medie": 70.26088797746522,
+            "acuratete_std": 0.0022529695247805828,
+            "eroare_l2_medie": 0.29739112022534786
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 4205.5,
+            "acuratete_medie": 70.26063802881484,
+            "acuratete_std": 0.003129444656326242,
+            "eroare_l2_medie": 0.29739361971185163
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 5247.6,
+            "acuratete_medie": 70.26037333125969,
+            "acuratete_std": 0.001718687289959701,
+            "eroare_l2_medie": 0.2973962666874032
+        }
+    ]
+}

@@ -1,0 +1,73 @@
+# =========================
+# Backend (Python / Flask)
+# =========================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+env/
+.venv/
+.env/
+
+# Environment Variables (Keep your secrets safe!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# PyTorch / Machine Learning specific
+# Ignore saved model weights to avoid pushing massive files to GitHub
+*.pth
+*.pt
+*.onnx
+
+# Logs and Databases
+*.log
+*.sqlite3
+*.db
+instance/
+
+# Jupyter Notebooks (if you use them for prototyping the PINNs)
+.ipynb_checkpoints/
+
+# =========================
+# Frontend (React / Node)
+# =========================
+# Node dependencies
+node_modules/
+
+# Production build directories
+/build
+/dist
+
+# Caches
+.eslintcache
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# OS & Editor / IDE specific
+# =========================
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# JetBrains (PyCharm, WebStorm, IntelliJ)
+.idea/
+
+# Vim / Emacs
+*.swp
+*~

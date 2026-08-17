@@ -1,0 +1,308 @@
+{	
+	"Caz_1_Exponentiala": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 113.8,
+            "acuratete_medie": 88.80675508037407,
+            "acuratete_std": 1.7320384808159341,
+            "eroare_l2_medie": 0.11193244919625929
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 221.0,
+            "acuratete_medie": 96.65928171975625,
+            "acuratete_std": 0.48320958305191264,
+            "eroare_l2_medie": 0.033407182802437645
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 627.7,
+            "acuratete_medie": 98.924958438389,
+            "acuratete_std": 0.2679743579911607,
+            "eroare_l2_medie": 0.010750415616110023
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 1712.6,
+            "acuratete_medie": 99.70394878867414,
+            "acuratete_std": 0.0798985940566699,
+            "eroare_l2_medie": 0.002960512113258579
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 2913.6,
+            "acuratete_medie": 99.91959184713085,
+            "acuratete_std": 0.023238780810841304,
+            "eroare_l2_medie": 0.0008040815286915925
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 4167.777777777777,
+            "acuratete_medie": 99.98165559295504,
+            "acuratete_std": 0.005480040143751367,
+            "eroare_l2_medie": 0.00018344407044975513
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 4661.222222222223,
+            "acuratete_medie": 99.97858415266886,
+            "acuratete_std": 0.014117810911473037,
+            "eroare_l2_medie": 0.00021415847331149562
+        }
+    ],
+    "Caz_2_Oscilator": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 2898.3,
+            "acuratete_medie": 80.20856282248839,
+            "acuratete_std": 10.099534005128277,
+            "eroare_l2_medie": 0.19791437177511623
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 3275.3333333333335,
+            "acuratete_medie": 97.14343657799549,
+            "acuratete_std": 1.277748650689478,
+            "eroare_l2_medie": 0.028565634220045114
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 3011.222222222222,
+            "acuratete_medie": 99.56448277547219,
+            "acuratete_std": 0.24809285216426408,
+            "eroare_l2_medie": 0.004355172245278243
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 2755.5555555555557,
+            "acuratete_medie": 99.88027897180038,
+            "acuratete_std": 0.04737019482793564,
+            "eroare_l2_medie": 0.0011972102819962772
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 3379.9,
+            "acuratete_medie": 99.97308316378079,
+            "acuratete_std": 0.009956083939255784,
+            "eroare_l2_medie": 0.000269168362192218
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 4468.7,
+            "acuratete_medie": 99.97494609554089,
+            "acuratete_std": 0.02471092170968777,
+            "eroare_l2_medie": 0.00025053904459107235
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 4770.0,
+            "acuratete_medie": 99.98339995644018,
+            "acuratete_std": 0.009835684558674163,
+            "eroare_l2_medie": 0.00016600043559824058
+        }
+    ],
+    "Caz_3_Logistica": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 1119.4,
+            "acuratete_medie": 28.57308670276327,
+            "acuratete_std": 43.26760811168736,
+            "eroare_l2_medie": 0.7148072180849818
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 1124.25,
+            "acuratete_medie": 99.67273908319883,
+            "acuratete_std": 0.21865011013871335,
+            "eroare_l2_medie": 0.0032726091680116936
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 1276.2222222222222,
+            "acuratete_medie": 99.7490417929156,
+            "acuratete_std": 0.12586102199830418,
+            "eroare_l2_medie": 0.002509582070843895
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 1193.75,
+            "acuratete_medie": 99.90500928223996,
+            "acuratete_std": 0.025582791116172232,
+            "eroare_l2_medie": 0.0009499071776003953
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 1087.75,
+            "acuratete_medie": 94.02528639765697,
+            "acuratete_std": 15.726536096165669,
+            "eroare_l2_medie": 0.05974713602343039
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 1413.875,
+            "acuratete_medie": 99.9888390313619,
+            "acuratete_std": 0.0018312816411103717,
+            "eroare_l2_medie": 0.00011160968638095702
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 2002.111111111111,
+            "acuratete_medie": 99.98736572350327,
+            "acuratete_std": 0.002966508804644445,
+            "eroare_l2_medie": 0.0001263427649671693
+        }
+    ],
+    "Caz_4_Oscilator": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 3118.5,
+            "acuratete_medie": 76.26462586180273,
+            "acuratete_std": 10.769518507513085,
+            "eroare_l2_medie": 0.23735374138197268
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 3184.7,
+            "acuratete_medie": 96.92154493308867,
+            "acuratete_std": 1.8926009995994284,
+            "eroare_l2_medie": 0.03078455066911336
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 3044.3,
+            "acuratete_medie": 99.51090588587547,
+            "acuratete_std": 0.2191679597343028,
+            "eroare_l2_medie": 0.004890941141245152
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 2841.6666666666665,
+            "acuratete_medie": 99.90857129326984,
+            "acuratete_std": 0.030400179329526815,
+            "eroare_l2_medie": 0.0009142870673014805
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 3172.222222222222,
+            "acuratete_medie": 99.96277765769885,
+            "acuratete_std": 0.014151134471966417,
+            "eroare_l2_medie": 0.000372223423011485
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 4870.8,
+            "acuratete_medie": 99.9869000380731,
+            "acuratete_std": 0.007095715872279449,
+            "eroare_l2_medie": 0.0001309996192690618
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 4791.0,
+            "acuratete_medie": 99.98423618743013,
+            "acuratete_std": 0.006417476174126514,
+            "eroare_l2_medie": 0.00015763812569871325
+        }
+    ],
+    "Caz_5_Pendul": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 2915.2,
+            "acuratete_medie": 45.521096321067446,
+            "acuratete_std": 4.692166489225569,
+            "eroare_l2_medie": 0.5447890367893256
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 3172.7,
+            "acuratete_medie": 97.19178885644592,
+            "acuratete_std": 1.6199097584159998,
+            "eroare_l2_medie": 0.02808211143554059
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 3243.777777777778,
+            "acuratete_medie": 99.22574637433371,
+            "acuratete_std": 0.2622702121174724,
+            "eroare_l2_medie": 0.007742536256662653
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 3478.3333333333335,
+            "acuratete_medie": 99.59122025431788,
+            "acuratete_std": 0.06830050216665148,
+            "eroare_l2_medie": 0.004087797456821283
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 3193.6,
+            "acuratete_medie": 99.61624818870764,
+            "acuratete_std": 0.03061022848516965,
+            "eroare_l2_medie": 0.0038375181129236143
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 4099.0,
+            "acuratete_medie": 99.60394362669489,
+            "acuratete_std": 0.0032091815589336123,
+            "eroare_l2_medie": 0.003960563733051173
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 4065.0,
+            "acuratete_medie": 99.6122355016795,
+            "acuratete_std": 0.011597645695600109,
+            "eroare_l2_medie": 0.0038776449832049953
+        }
+    ],
+    "Caz_6_Ordin_3": [
+        {
+            "toleranta": 0.01,
+            "epoci_medie": 3213.1428571428573,
+            "acuratete_medie": 58.60358362871646,
+            "acuratete_std": 1.23242670539437,
+            "eroare_l2_medie": 0.41396416371283556
+        },
+        {
+            "toleranta": 0.001,
+            "epoci_medie": 2334.0,
+            "acuratete_medie": 93.90103135749358,
+            "acuratete_std": 3.5992360517502684,
+            "eroare_l2_medie": 0.06098968642506421
+        },
+        {
+            "toleranta": 0.0001,
+            "epoci_medie": 3490.5555555555557,
+            "acuratete_medie": 99.29241106365535,
+            "acuratete_std": 0.2270290057691601,
+            "eroare_l2_medie": 0.007075889363446571
+        },
+        {
+            "toleranta": 1e-05,
+            "epoci_medie": 2496.777777777778,
+            "acuratete_medie": 99.8300524672872,
+            "acuratete_std": 0.08024842711674258,
+            "eroare_l2_medie": 0.0016994753271279113
+        },
+        {
+            "toleranta": 1e-06,
+            "epoci_medie": 3466.375,
+            "acuratete_medie": 99.96684375530779,
+            "acuratete_std": 0.015046222898264494,
+            "eroare_l2_medie": 0.00033156244692210624
+        },
+        {
+            "toleranta": 1e-07,
+            "epoci_medie": 4812.25,
+            "acuratete_medie": 99.98867337479248,
+            "acuratete_std": 0.0047060623628006944,
+            "eroare_l2_medie": 0.00011326625207513688
+        },
+        {
+            "toleranta": 1e-08,
+            "epoci_medie": 4493.777777777777,
+            "acuratete_medie": 99.9825888202064,
+            "acuratete_std": 0.014591822421019697,
+            "eroare_l2_medie": 0.0001741117979358733
+        }
+    ]
+}
