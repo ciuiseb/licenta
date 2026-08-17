@@ -3,6 +3,7 @@ Flask-Cors==6.0.2
 Flask-Session==0.8.0
 Flask-SocketIO==5.3.0
 fontTools==4.61.0
+matplotlib==3.10.3
 numpy==2.2.6
 scipy==1.15.3
 sympy==1.14.0
