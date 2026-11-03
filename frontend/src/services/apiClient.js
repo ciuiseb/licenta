@@ -26,7 +26,7 @@ class APIError extends Error {
 
 class APIClient {
   constructor(baseURL = '') {
-    this.baseURL = baseURL || 'http://localhost:5000';
+    this.baseURL = baseURL || '';
     this.defaultTimeout = 30000;
     this.maxRetries = 3;
     this.retryDelay = 1000;
@@ -63,18 +63,18 @@ class APIClient {
 
   async retryRequest(requestFn, retries = this.maxRetries) {
     let lastError;
-    
+
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         return await requestFn();
       } catch (error) {
         lastError = error;
-        
+
         if (error instanceof APIError) {
           if (error.isValidationError() || error.status === 404) {
             throw error;
           }
-          
+
           if (error.isServerError() || error.isNetworkError() || error.isTimeout()) {
             if (attempt < retries) {
               const delay = this.calculateRetryDelay(attempt);
@@ -91,17 +91,17 @@ class APIClient {
             continue;
           }
         }
-        
+
         throw error;
       }
     }
-    
+
     throw lastError;
   }
 
   async handleResponse(response) {
     const contentType = response.headers.get('content-type');
-    
+
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       let errorData = null;
@@ -134,7 +134,7 @@ class APIClient {
     if (error instanceof APIError) {
       throw error;
     }
-    
+
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       throw new APIError(
         'Network error: Unable to connect to server',
@@ -154,7 +154,7 @@ class APIClient {
 
   async makeRequest(method, endpoint, data, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const requestFn = async () => {
       const response = await this.fetchWithTimeout(url, {
         method,
@@ -188,13 +188,13 @@ class APIClient {
   createSSEConnection(endpoint, data, options = {}) {
     const baseURL = this.baseURL;
     const controller = new AbortController();
-    
+
     return {
       controller,
-      
+
       async *stream() {
         const url = `${baseURL}${endpoint}`;
-        
+
         try {
           const response = await fetch(url, {
             method: 'POST',
@@ -211,13 +211,13 @@ class APIClient {
           if (!response.ok) {
             const contentType = response.headers.get('content-type');
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-            
+
             if (contentType && contentType.includes('text/event-stream')) {
               const reader = response.body.getReader();
               const decoder = new TextDecoder();
               const { value } = await reader.read();
               const text = decoder.decode(value);
-              
+
               const lines = text.split('\n');
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
@@ -267,11 +267,11 @@ class APIClient {
             console.log('SSE connection aborted');
             return;
           }
-          
+
           if (error instanceof APIError) {
             throw error;
           }
-          
+
           throw new APIError(
             error.message || 'SSE connection failed',
             0,
@@ -280,7 +280,7 @@ class APIClient {
           );
         }
       },
-      
+
       abort() {
         controller.abort();
       }
